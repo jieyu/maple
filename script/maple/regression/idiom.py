@@ -1,0 +1,142 @@
+"""Copyright 2011 The University of Michigan
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Authors - Jie Yu (jieyu@umich.edu)
+"""
+
+import os
+import sys
+import imp
+import shutil
+import subprocess
+from maple.core import config
+from maple.core import logging
+from maple.core import pintool
+from maple.core import testing
+from maple.idiom import pintool as idiom_pintool
+from maple.idiom import testing as idiom_testing
+from maple.regression import common
+
+def get_prefix(pin, tool):
+    c = []
+    c.append(pin.pin())
+    c.extend(pin.options())
+    c.extend(tool.options())
+    c.append('--')
+    return c
+
+def clean_currdir():
+    for f in os.listdir(os.getcwd()):
+        os.remove(f)
+
+def idiom_predictor(suite):
+    assert common.is_testcase(suite)
+    clean_currdir()
+    testcase = common.testcase_name(suite)
+    source_path = common.source_path(suite)
+    script_path = common.script_path(suite)
+    target_path = os.path.join(os.getcwd(), 'target')
+    output_path = os.path.join(os.getcwd(), 'stdout')
+    f, p, d = imp.find_module(testcase, [os.path.dirname(script_path)])
+    module = imp.load_module(testcase, f, p, d)
+    f.close()
+    flags = common.default_flags(suite)
+    if hasattr(module, 'setup_flags'):
+        module.setup_flags(flags)
+    if not common.compile(source_path, target_path, flags, True):
+        common.echo(suite, False, 'compile error')
+        return False
+    pin = pintool.Pin(config.pin_home())
+    profiler = idiom_pintool.Profiler()
+    profiler.knobs['enable_predictor_new'] = True
+    if hasattr(module, 'setup_profiler'):
+        module.setup_profiler(profiler)
+    test = testing.InteractiveTest([target_path], sout=output_path)
+    test.set_prefix(get_prefix(pin, profiler))
+    testcase = idiom_testing.ProfileTestCase(test, 'runout', 3, profiler)
+    if hasattr(module, 'setup_testcase'):
+        module.setup_testcase(testcase)
+    logging.message_off()
+    testcase.run()
+    logging.message_on()
+    if not hasattr(module, 'verify'):
+        common.echo(suite, False, 'no verify')
+        return False
+    else:
+        success = module.verify(profiler, testcase)
+        common.echo(suite, success, '')
+        return success
+
+def idiom_observer(suite):
+    assert common.is_testcase(suite)
+    clean_currdir()
+    testcase = common.testcase_name(suite)
+    source_path = common.source_path(suite)
+    script_path = common.script_path(suite)
+    target_path = os.path.join(os.getcwd(), 'target')
+    output_path = os.path.join(os.getcwd(), 'stdout')
+    f, p, d = imp.find_module(testcase, [os.path.dirname(script_path)])
+    module = imp.load_module(testcase, f, p, d)
+    f.close()
+    flags = common.default_flags(suite)
+    if hasattr(module, 'setup_flags'):
+        module.setup_flags(flags)
+    if not common.compile(source_path, target_path, flags, True):
+        common.echo(suite, False, 'compile error')
+        return False
+    pin = pintool.Pin(config.pin_home())
+    profiler = idiom_pintool.Profiler()
+    profiler.knobs['enable_observer_new'] = True
+    if hasattr(module, 'setup_profiler'):
+        module.setup_profiler(profiler)
+    test = testing.InteractiveTest([target_path], sout=output_path)
+    test.set_prefix(get_prefix(pin, profiler))
+    testcase = idiom_testing.ProfileTestCase(test, 'runout', 3, profiler)
+    if hasattr(module, 'setup_testcase'):
+        module.setup_testcase(testcase)
+    logging.message_off()
+    testcase.run()
+    logging.message_on()
+    if not hasattr(module, 'verify'):
+        common.echo(suite, False, 'no verify')
+        return False
+    else:
+        success = module.verify(profiler, testcase)
+        common.echo(suite, success, '')
+        return success
+
+def handle(suite):
+    if common.is_package(suite):
+        fail = False
+        for subsuite in common.list_subsuites(suite):
+            if not handle(subsuite):
+                fail = True
+        return not fail
+    elif common.is_testcase(suite):
+        handler_name = '_'.join(suite.split('.')[:-1])
+        return eval('%s(suite)' % handler_name)
+
+def main(suite, argv):
+    currdir = os.getcwd()
+    workdir = os.path.join(currdir, 'regression-idiom-workdir')
+    if not os.path.exists(workdir):
+        os.mkdir(workdir)
+    os.chdir(workdir)
+    if handle(suite):
+        shutil.rmtree(workdir)
+    os.chdir(currdir)
+
+if __name__ == '__main__':
+    main('idiom', sys.argv[1:])
+

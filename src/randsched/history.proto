@@ -1,0 +1,11 @@
+package randsched;
+
+message HistoryProto {
+  required uint64 inst_count = 1;
+  required uint64 num_threads = 2;
+}
+
+message HistoryTableProto {
+  repeated HistoryProto history = 1;
+}
+

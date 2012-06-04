@@ -1,0 +1,5 @@
+#!/bin/sh
+
+PKG_HOME=$(dirname $(readlink -f $0))
+$PKG_HOME/script/idiom default $*
+

@@ -1,0 +1,75 @@
+package tracer;
+
+enum LogEntryType {
+  LOG_ENTRY_INVALID                               = 0;
+  LOG_ENTRY_PROGRAM_START                         = 1;
+  LOG_ENTRY_PROGRAM_EXIT                          = 2;
+  LOG_ENTRY_IMAGE_LOAD                            = 3;
+  LOG_ENTRY_IMAGE_UNLOAD                          = 4;
+  LOG_ENTRY_SYSCALL_ENTRY                         = 5;
+  LOG_ENTRY_SYSCALL_EXIT                          = 6;
+  LOG_ENTRY_SIGNAL_RECEIVED                       = 7;
+  LOG_ENTRY_THREAD_START                          = 8;
+  LOG_ENTRY_THREAD_EXIT                           = 9;
+  LOG_ENTRY_MAIN                                  = 10;
+  LOG_ENTRY_THREAD_MAIN                           = 11;
+  LOG_ENTRY_BEFORE_MEM_READ                       = 12;
+  LOG_ENTRY_AFTER_MEM_READ                        = 13;
+  LOG_ENTRY_BEFORE_MEM_WRITE                      = 14;
+  LOG_ENTRY_AFTER_MEM_WRITE                       = 15;
+  LOG_ENTRY_BEFORE_ATOMIC_INST                    = 16;
+  LOG_ENTRY_AFTER_ATOMIC_INST                     = 17;
+  LOG_ENTRY_BEFORE_PTHREAD_CREATE                 = 101;
+  LOG_ENTRY_AFTER_PTHREAD_CREATE                  = 102;
+  LOG_ENTRY_BEFORE_PTHREAD_JOIN                   = 103;
+  LOG_ENTRY_AFTER_PTHREAD_JOIN                    = 104;
+  LOG_ENTRY_BEFORE_PTHREAD_MUTEX_TRYLOCK          = 105;
+  LOG_ENTRY_AFTER_PTHREAD_MUTEX_TRYLOCK           = 106;
+  LOG_ENTRY_BEFORE_PTHREAD_MUTEX_LOCK             = 107;
+  LOG_ENTRY_AFTER_PTHREAD_MUTEX_LOCK              = 108;
+  LOG_ENTRY_BEFORE_PTHREAD_MUTEX_UNLOCK           = 109;
+  LOG_ENTRY_AFTER_PTHREAD_MUTEX_UNLOCK            = 110;
+  LOG_ENTRY_BEFORE_PTHREAD_COND_SIGNAL            = 111;
+  LOG_ENTRY_AFTER_PTHREAD_COND_SIGNAL             = 112;
+  LOG_ENTRY_BEFORE_PTHREAD_COND_BROADCAST         = 113;
+  LOG_ENTRY_AFTER_PTHREAD_COND_BROADCAST          = 114;
+  LOG_ENTRY_BEFORE_PTHREAD_COND_WAIT              = 115;
+  LOG_ENTRY_AFTER_PTHREAD_COND_WAIT               = 116;
+  LOG_ENTRY_BEFORE_PTHREAD_COND_TIMEDWAIT         = 117;
+  LOG_ENTRY_AFTER_PTHREAD_COND_TIMEDWAIT          = 118;
+  LOG_ENTRY_BEFORE_PTHREAD_BARRIER_INIT           = 119;
+  LOG_ENTRY_AFTER_PTHREAD_BARRIER_INIT            = 120;
+  LOG_ENTRY_BEFORE_PTHREAD_BARRIER_WAIT           = 121;
+  LOG_ENTRY_AFTER_PTHREAD_BARRIER_WAIT            = 122;
+  LOG_ENTRY_BEFORE_MALLOC                         = 201;
+  LOG_ENTRY_AFTER_MALLOC                          = 202;
+  LOG_ENTRY_BEFORE_CALLOC                         = 203;
+  LOG_ENTRY_AFTER_CALLOC                          = 204;
+  LOG_ENTRY_BEFORE_REALLOC                        = 205;
+  LOG_ENTRY_AFTER_REALLOC                         = 206;
+  LOG_ENTRY_BEFORE_FREE                           = 207;
+  LOG_ENTRY_AFTER_FREE                            = 208;
+  LOG_ENTRY_BEFORE_VALLOC                         = 209;
+  LOG_ENTRY_AFTER_VALLOC                          = 210;
+}
+
+message LogEntryProto {
+  required LogEntryType type = 1;
+  optional uint64 thd_id = 2;
+  optional uint64 thd_clk = 3;
+  optional uint32 inst_id = 4;
+  repeated uint64 arg = 5;
+  repeated string str_arg = 6;
+}
+
+message LogMetaProto {
+  required uint64 uid = 1;
+  required uint32 slice_count = 3;
+}
+
+message LogSliceProto {
+  required uint64 uid = 1;
+  required uint32 slice_no = 2;
+  repeated LogEntryProto entry = 3;
+}
+

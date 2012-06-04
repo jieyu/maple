@@ -1,0 +1,9 @@
+package delta;
+
+message sListEntryProto{
+  required uint32 iroot_id = 1;
+}
+
+message sListProto{
+  repeated sListEntryProto entry = 1; 
+}

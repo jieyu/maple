@@ -1,0 +1,38 @@
+package race;
+
+enum RaceEventType {
+  RACE_EVENT_INVALID = 0;
+  RACE_EVENT_READ = 1;
+  RACE_EVENT_WRITE = 2;
+}
+
+message StaticRaceEventProto {
+  required uint32 id = 1;
+  required uint32 inst_id = 2;
+  required RaceEventType type = 3;
+}
+
+message StaticRaceProto {
+  required uint32 id = 1;
+  repeated uint32 event_id = 2;
+}
+
+message RaceEventProto {
+  required uint64 thd_id = 1;
+  required uint32 static_id = 2;
+}
+
+message RaceProto {
+  required uint32 exec_id = 1;
+  required uint64 addr = 2;
+  repeated RaceEventProto event = 3;
+  required uint32 static_id = 4;
+}
+
+message RaceDBProto {
+  repeated StaticRaceEventProto static_event = 1;
+  repeated StaticRaceProto static_race = 2;
+  repeated RaceProto race = 3;
+  repeated uint32 racy_inst_id = 4;
+}
+

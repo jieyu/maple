@@ -1,0 +1,10 @@
+package sinst;
+
+message SharedInstProto {
+  required uint32 inst_id = 1;
+}
+
+message SharedInstTableProto {
+  repeated SharedInstProto shared_inst = 1;
+}
+

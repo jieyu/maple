@@ -1,0 +1,12 @@
+package idiom;
+
+message HistoryProto {
+  required uint32 iroot_id = 1;
+  required uint32 seed = 2;
+  optional bool success = 3;
+}
+
+message HistoryTableProto {
+  repeated HistoryProto history = 1;
+}
+

@@ -1,0 +1,36 @@
+package idiom;
+
+enum IdiomType {
+  IDIOM_INVALID = 0;
+  IDIOM_1 = 1;
+  IDIOM_2 = 2;
+  IDIOM_3 = 3;
+  IDIOM_4 = 4;
+  IDIOM_5 = 5;
+}
+
+enum iRootEventType {
+  IROOT_EVENT_INVALID = 0;
+  IROOT_EVENT_MEM_READ = 1;
+  IROOT_EVENT_MEM_WRITE = 2;
+  IROOT_EVENT_MUTEX_LOCK = 3;
+  IROOT_EVENT_MUTEX_UNLOCK = 4;
+}
+
+message iRootEventProto {
+  required uint32 id = 1;
+  required uint32 inst_id = 2;
+  required iRootEventType type = 3;
+}
+
+message iRootProto {
+  required uint32 id = 1;
+  required IdiomType idiom = 2;
+  repeated uint32 event_id = 3;
+}
+
+message iRootDBProto {
+  repeated iRootEventProto event = 1;
+  repeated iRootProto iroot = 2;
+}
+

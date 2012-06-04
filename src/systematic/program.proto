@@ -1,0 +1,71 @@
+package systematic;
+
+message ThreadProto {
+  required uint32 uid = 1;
+  optional uint32 creator_uid = 2;
+  optional uint32 creator_idx = 3;
+}
+
+message SObjectProto {
+  required uint32 uid = 1;
+  required uint32 image_id = 2;
+  required uint64 offset = 3;
+}
+
+message DObjectProto {
+  required uint32 uid = 1;
+  required uint32 creator_uid = 2;
+  required uint32 creator_inst_id = 3;
+  required uint32 creator_idx = 4;
+  required uint64 offset = 5;
+}
+
+message ProgramProto {
+  repeated ThreadProto thread = 1;
+  repeated SObjectProto sobject = 2;
+  repeated DObjectProto dobject = 3;
+}
+
+enum Operation {
+  OP_INVALID = 0;
+  OP_THREAD_START = 1;
+  OP_THREAD_END = 2;
+  OP_THREAD_CREATE = 3;
+  OP_THREAD_JOIN = 4;
+  OP_MUTEX_LOCK = 11;
+  OP_MUTEX_UNLOCK = 12;
+  OP_MUTEX_TRYLOCK = 13;
+  OP_COND_WAIT = 21;
+  OP_COND_SIGNAL = 22;
+  OP_COND_BROADCAST = 23;
+  OP_COND_TIMEDWAIT = 24;
+  OP_BARRIER_INIT = 31;
+  OP_BARRIER_WAIT = 32;
+  OP_MEM_READ = 41;
+  OP_MEM_WRITE = 42;
+  OP_SLEEP = 51;
+  OP_USLEEP = 52;
+  OP_NANOSLEEP = 53;
+  OP_SCHED_YIELD = 54;
+}
+
+message ActionProto {
+  required uint32 thd_uid = 1;
+  optional uint32 obj_uid = 2;
+  required Operation op = 3;
+  optional uint32 inst_id = 4;
+  optional uint64 tc = 5;
+  optional uint64 oc = 6;
+  optional bool yield = 7;
+}
+
+message StateProto {
+  repeated uint32 enabled = 1;
+  optional uint32 taken = 2;
+}
+
+message ExecutionProto {
+  repeated ActionProto action = 1;
+  repeated StateProto state = 2;
+}
+

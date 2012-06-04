@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# setup python
+PYTHON=python
+
+# obtain the script home
+SCRIPT_HOME=$(dirname $(readlink -f $0))
+
+# setup python path for the scripts
+export PYTHONPATH=$SCRIPT_HOME:$PYTHONPATH
+
+# call the python script
+$PYTHON $SCRIPT_HOME/maple/race/main.py $*
+

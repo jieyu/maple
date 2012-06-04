@@ -1,0 +1,24 @@
+import "systematic/program.proto";
+
+package systematic;
+
+message ActionInfoProto {
+  required uint32 thd_uid = 1;
+  optional uint32 obj_uid = 2;
+  required Operation op = 3;
+  optional uint32 inst_id = 4;
+}
+
+message SearchNodeProto {
+  required uint32 sel = 1;
+  repeated uint32 backtrack = 2;
+  repeated uint32 done = 3;
+  repeated ActionInfoProto enabled = 4;
+}
+
+message SearchInfoProto {
+  required bool done = 1;
+  required uint32 num_runs = 2;
+  repeated SearchNodeProto node = 3;
+}
+

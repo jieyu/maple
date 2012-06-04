@@ -1,0 +1,23 @@
+package idiom;
+
+message iRootInfoProto {
+  required uint32 iroot_id = 1;
+  required uint32 total_test_runs = 2;
+  optional bool async = 3;
+}
+
+message CandidateProto {
+  required uint32 iroot_id = 1;
+  required uint32 test_runs = 2;
+}
+
+message MemoProto { 
+  repeated iRootInfoProto iroot_info = 1;
+  repeated uint32 exposed = 2;
+  repeated uint32 failed = 3;
+  repeated uint32 predicted = 4;
+  repeated uint32 shadow_exposed = 5;
+  repeated CandidateProto candidate = 6;
+}
+
+

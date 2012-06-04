@@ -1,0 +1,24 @@
+message DebugInfoProto {
+  required string file_name = 1;
+  required int32 line = 2;
+  required int32 column = 3;
+}
+
+message ImageProto {
+  required uint32 id = 1;
+  required string name = 2;
+}
+
+message InstProto {
+  required uint32 id = 1;
+  required uint32 image_id = 2;
+  required uint64 offset = 3;
+  optional uint32 opcode = 4;
+  optional DebugInfoProto debug_info = 5;
+}
+
+message StaticInfoProto {
+  repeated ImageProto image = 1;
+  repeated InstProto inst = 2;
+}
+

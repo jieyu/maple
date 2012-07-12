@@ -14,25 +14,9 @@
 //
 // Authors - Jie Yu (jieyu@umich.edu)
 
-// File: core/pin_util.hpp - Define PIN utility functions.
+// File: core/knob.cc - Implement the command line switches.
 
-#ifndef CORE_PIN_UTIL_HPP_
-#define CORE_PIN_UTIL_HPP_
+#include "core/knob.h"
 
-#include "pin.H"
-
-#include "core/basictypes.h"
-
-// Global definitions
-
-// Find RTN by function name in an image.
-extern RTN FindRTN(IMG img, const std::string &func_name);
-
-// Get the IMG that contains the TRACE.
-extern IMG GetImgByTrace(TRACE trace);
-
-// Return whether the given bbl contains non-stack memory access.
-extern bool BBLContainMemOp(BBL bbl);
-
-#endif
+Knob *Knob::knob_ = NULL;
 

@@ -38,7 +38,7 @@ namespace idiom {
 // The new iRoot observer which analyzes which iRoots are tested.
 class ObserverNew : public Analyzer {
  public:
-  explicit ObserverNew(Knob *knob);
+  ObserverNew();
   ~ObserverNew();
 
   void Register();

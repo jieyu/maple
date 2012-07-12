@@ -32,7 +32,7 @@ namespace race {
 
 class Djit : public Detector {
  public:
-  explicit Djit(Knob *knob);
+  Djit();
   ~Djit();
 
   void Register();

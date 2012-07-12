@@ -44,9 +44,9 @@ void ChessProfiler::HandlePreSetup() {
   knob_->RegisterStr("sinst_in", "The input shared instruction database.", "sinst.db");
   knob_->RegisterStr("sinst_out", "The output shared instruction database.", "sinst.db");
 
-  sinst_analyzer_ = new sinst::SharedInstAnalyzer(knob_);
-  observer_ = new Observer(knob_);
-  observer_new_ = new ObserverNew(knob_);
+  sinst_analyzer_ = new sinst::SharedInstAnalyzer;
+  observer_ = new Observer;
+  observer_new_ = new ObserverNew;
   sinst_analyzer_->Register();
   observer_->Register();
   observer_new_->Register();

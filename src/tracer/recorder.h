@@ -28,7 +28,7 @@ namespace tracer {
 // Analyzer for recording traces.
 class RecorderAnalyzer : public Analyzer {
  public:
-  explicit RecorderAnalyzer(Knob *knob);
+  RecorderAnalyzer();
   ~RecorderAnalyzer() {}
 
   void Register();

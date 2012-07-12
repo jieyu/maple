@@ -37,9 +37,11 @@ class Descriptor {
   bool HookYieldFunc() { return hook_yield_func_; }
   bool HookMallocFunc() { return hook_malloc_func_; }
   bool HookMainFunc() { return hook_main_func_; }
+  bool HookCallReturn() { return hook_call_return_; }
   bool HookSyscall() { return hook_syscall_; }
   bool HookSignal() { return hook_signal_; }
   bool TrackInstCount() { return track_inst_count_; }
+  bool TrackCallStack() { return track_call_stack_; }
   bool SkipStackAccess() { return skip_stack_access_; }
 
   void SetHookBeforeMem() { hook_before_mem_ = true; }
@@ -48,10 +50,12 @@ class Descriptor {
   void SetHookYieldFunc() { hook_yield_func_ = true; }
   void SetHookMallocFunc() { hook_malloc_func_ = true; }
   void SetHookMainFunc() { hook_main_func_ = true; }
+  void SetHookCallReturn() { hook_call_return_ = true; }
   void SetHookSyscall() { hook_syscall_ = true; }
   void SetHookSignal() { hook_signal_ = true; }
   void SetHookAtomicInst() { hook_atomic_inst_ = true; }
   void SetTrackInstCount() { track_inst_count_ = true; }
+  void SetTrackCallStack() { track_call_stack_ = true; }
   void SetNoSkipStackAccess() { skip_stack_access_ = false; }
 
  protected:
@@ -62,9 +66,11 @@ class Descriptor {
   bool hook_yield_func_;
   bool hook_malloc_func_;
   bool hook_main_func_;
+  bool hook_call_return_;
   bool hook_syscall_;
   bool hook_signal_;
   bool track_inst_count_;
+  bool track_call_stack_;
   bool skip_stack_access_;
 
  private:

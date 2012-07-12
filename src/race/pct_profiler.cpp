@@ -28,7 +28,7 @@ void PctProfiler::HandlePreSetup() {
   knob_->RegisterStr("race_in", "the input race database path", "race.db");
   knob_->RegisterStr("race_out", "the output race database path", "race.db");
 
-  djit_analyzer_ = new Djit(knob_);
+  djit_analyzer_ = new Djit;
   djit_analyzer_->Register();
 }
 

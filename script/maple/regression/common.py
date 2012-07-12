@@ -130,10 +130,10 @@ def default_flags(suite):
     return None
 
 def default_cxx_flags():
-    return ['-g', '-Wall', '-Werror', '-fno-omit-frame-pointer', '-pthread']
+    return ['-g', '-Werror', '-fno-omit-frame-pointer', '-pthread']
 
 def default_c_flags():
-    return ['-g', '-Wall', '-Werror', '-fno-omit-frame-pointer', '-pthread']
+    return ['-g', '-Werror', '-fno-omit-frame-pointer', '-pthread']
 
 def compile(source, target, flags, echo=False):
     name, ext = os.path.splitext(source)

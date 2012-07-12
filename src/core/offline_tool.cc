@@ -36,11 +36,12 @@ OfflineTool::~OfflineTool() {
 void OfflineTool::Initialize() {
   logging_init(CreateMutex());
   kernel_lock_ = CreateMutex();
+  Knob::Initialize(new CmdlineKnob);
+  knob_ = Knob::Get();
   tool_ = this;
 }
 
 void OfflineTool::PreSetup() {
-  knob_ = new CmdlineKnob;
   knob_->RegisterStr("debug_out", "Debug messages output file.", "stdout");
   knob_->RegisterStr("sinfo_in", "Static info input file.", "sinfo.out");
   knob_->RegisterStr("sinfo_out", "Static info output file.", "sinfo.out");
@@ -71,7 +72,7 @@ void OfflineTool::PostSetup() {
 }
 
 void OfflineTool::Parse(int argc, char *argv[]) {
-  knob_->Parse(argc, argv);
+  ((CmdlineKnob *)knob_)->Parse(argc, argv);
 }
 
 void OfflineTool::Start() {

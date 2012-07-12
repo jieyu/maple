@@ -21,9 +21,8 @@
 
 namespace tracer {
 
-RecorderAnalyzer::RecorderAnalyzer(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+RecorderAnalyzer::RecorderAnalyzer()
+    : internal_lock_(NULL),
       trace_log_(NULL) {
   // do nothing
 }

@@ -23,9 +23,7 @@
 
 namespace race {
 
-Djit::Djit(Knob *knob)
-    : Detector(knob),
-      track_racy_inst_(false) {
+Djit::Djit() : track_racy_inst_(false) {
   // do nothing
 }
 

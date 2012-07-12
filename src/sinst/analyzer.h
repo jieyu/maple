@@ -34,7 +34,7 @@ namespace sinst {
 // Analyzer for finding shared instructions.
 class SharedInstAnalyzer : public Analyzer {
  public:
-  explicit SharedInstAnalyzer(Knob *knob);
+  SharedInstAnalyzer();
   ~SharedInstAnalyzer();
 
   void Register();

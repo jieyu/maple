@@ -42,10 +42,10 @@ void Scheduler::HandlePreSetup() {
   knob_->RegisterStr("sinst_out", "the output shared inst database path", "sinst.db");
   knob_->RegisterInt("target_idiom", "the target idiom (0 means any idiom)", "0");
 
-  sinst_analyzer_ = new sinst::SharedInstAnalyzer(knob_);
+  sinst_analyzer_ = new sinst::SharedInstAnalyzer;
   sinst_analyzer_->Register();
-  observer_ = new Observer(knob_);
-  observer_new_ = new ObserverNew(knob_);
+  observer_ = new Observer;
+  observer_new_ = new ObserverNew;
   observer_->Register();
   observer_new_->Register();
 }

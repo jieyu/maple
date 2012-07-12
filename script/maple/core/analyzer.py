@@ -37,8 +37,10 @@ class DebugAnalyzer(Analyzer):
         self.register_knob('debug_mem', 'bool', False, 'whether debug mem accesses')
         self.register_knob('debug_atomic', 'bool', False, 'whether debug atomic inst')
         self.register_knob('debug_main', 'bool', True, 'whether debug main functions')
+        self.register_knob('debug_call_return', 'bool', False, 'whether debug calls and returns')
         self.register_knob('debug_pthread', 'bool', True, 'whether debug pthread functions')
         self.register_knob('debug_malloc', 'bool', True, 'whether debug malloc functions')
         self.register_knob('debug_syscall', 'bool', False, 'whether debug system calls')
         self.register_knob('debug_track_clk', 'bool', True, 'whether track per thread clock')
+        self.register_knob('debug_track_callstack', 'bool', False, 'whether track runtime call stack')
 

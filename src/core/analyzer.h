@@ -24,11 +24,17 @@
 #include "core/knob.h"
 #include "core/descriptor.h"
 
-// An analyzer is used to profile program bahavior.
-// For example: an PSet analyzer which builds predecessor set (PSet).
+// Forward declarations.
+class CallStackInfo;
+
+// An analyzer is used to profile program behaviors like an observer. It has no
+// control over the execution of the program.
 class Analyzer {
  public:
-  explicit Analyzer(Knob *knob) : knob_(knob) {}
+  Analyzer() : callstack_info_(NULL) {
+    knob_ = Knob::Get();
+  }
+
   virtual ~Analyzer() {}
 
   virtual void Register() {}
@@ -68,6 +74,14 @@ class Analyzer {
   virtual void AfterAtomicInst(thread_id_t curr_thd_id,
                                timestamp_t curr_thd_clk, Inst *inst,
                                std::string type, address_t addr) {}
+  virtual void BeforeCall(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                          Inst *inst, address_t target) {}
+  virtual void AfterCall(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                         Inst *inst, address_t target, address_t ret) {}
+  virtual void BeforeReturn(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                            Inst *inst, address_t target) {}
+  virtual void AfterReturn(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                           Inst *inst, address_t target) {}
   virtual void BeforePthreadCreate(thread_id_t curr_thd_id,
                                    timestamp_t curr_thd_clk, Inst *inst) {}
   virtual void AfterPthreadCreate(thread_id_t curr_thd_id,
@@ -161,10 +175,12 @@ class Analyzer {
                            Inst *inst, size_t size, address_t addr) {}
 
   Descriptor *desc() { return &desc_; }
+  void set_callstack_info(CallStackInfo *info) { callstack_info_ = info; }
 
  protected:
-  Knob *knob_;
   Descriptor desc_;
+  Knob *knob_;
+  CallStackInfo *callstack_info_;
 
  private:
   DISALLOW_COPY_CONSTRUCTORS(Analyzer);

@@ -20,8 +20,8 @@
 
 #include "core/logging.h"
 
-RTN FindRTN(IMG img, const char *func_name) {
-  RTN rtn = RTN_FindByName(img, func_name);
+RTN FindRTN(IMG img, const std::string &func_name) {
+  RTN rtn = RTN_FindByName(img, func_name.c_str());
   if (RTN_Valid(rtn))
     return rtn;
 

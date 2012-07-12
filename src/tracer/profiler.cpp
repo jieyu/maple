@@ -30,7 +30,7 @@ void Profiler::HandlePreSetup() {
   knob_->RegisterBool("ignore_ic_pthread", "do not count instructions in pthread", "1");
   knob_->RegisterBool("ignore_lib", "whether ignore accesses from common libraries", "0");
 
-  recorder_ = new RecorderAnalyzer(knob_);
+  recorder_ = new RecorderAnalyzer;
   recorder_->Register();
 }
 

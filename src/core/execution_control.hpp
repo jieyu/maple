@@ -30,25 +30,50 @@
 #include "core/descriptor.h"
 #include "core/analyzer.h"
 #include "core/debug_analyzer.h"
+#include "core/callstack.h"
 #include "core/pin_sync.hpp"
 #include "core/pin_knob.hpp"
-#include "core/pthread_wrapper.hpp"
-#include "core/malloc_wrapper.hpp"
-#include "core/sched_wrapper.hpp"
-#include "core/unistd_wrapper.hpp"
+#include "core/wrapper.hpp"
 
-#define CALL_ANALYSIS_FUNC(func,...) \
-    for (AnalyzerContainer::iterator it = analyzers_.begin(); \
-         it != analyzers_.end(); ++it) { \
-      (*it)->func(__VA_ARGS__); \
-    }
+// Define macros for calling analysis functions.
+#define CALL_ANALYSIS_FUNC(func,...)                                        \
+  for (AnalyzerContainer::iterator it = analyzers_.begin();                 \
+       it != analyzers_.end(); ++it) {                                      \
+    (*it)->func(__VA_ARGS__);                                               \
+  }
 
-#define CALL_ANALYSIS_FUNC2(type,func,...) \
-    for (AnalyzerContainer::iterator it = analyzers_.begin(); \
-         it != analyzers_.end(); ++it) { \
-      if ((*it)->desc()->Hook##type()) \
-        (*it)->func(__VA_ARGS__); \
-    }
+#define CALL_ANALYSIS_FUNC2(type,func,...)                                  \
+  for (AnalyzerContainer::iterator it = analyzers_.begin();                 \
+       it != analyzers_.end(); ++it) {                                      \
+    if ((*it)->desc()->Hook##type())                                        \
+      (*it)->func(__VA_ARGS__);                                             \
+  }
+
+// Define macros for wrapper handlers.
+#define MEMBER_WRAPPER_HANDLER(name) Handle##name
+#define STATIC_WRAPPER_HANDLER(name) __##name
+
+#define DECLARE_MEMBER_WRAPPER_HANDLER(name)                                \
+ protected:                                                                 \
+  virtual void MEMBER_WRAPPER_HANDLER(name)(WRAPPER_CLASS(name) *wrapper)
+
+#define DECLARE_STATIC_WRAPPER_HANDLER(name)                                \
+ protected:                                                                 \
+  static void STATIC_WRAPPER_HANDLER(name)(WRAPPER_CLASS(name) *wrapper) {  \
+    ctrl_->HandleBeforeWrapper(wrapper);                                    \
+    ctrl_->MEMBER_WRAPPER_HANDLER(name)(wrapper);                           \
+    ctrl_->HandleAfterWrapper(wrapper);                                     \
+  }
+
+#define DECLARE_WRAPPER_HANDLER(name)                                       \
+  DECLARE_STATIC_WRAPPER_HANDLER(name);                                     \
+  DECLARE_MEMBER_WRAPPER_HANDLER(name);
+
+#define IMPLEMENT_WRAPPER_HANDLER(name, cls)                                \
+  void cls::MEMBER_WRAPPER_HANDLER(name)(WRAPPER_CLASS(name) *wrapper)
+
+#define ACTIVATE_WRAPPER_HANDLER(name)                                      \
+  ACTIVATE_WRAPPER(name, img, STATIC_WRAPPER_HANDLER(name));
 
 // The main controller for the dynamic program analysis.
 class ExecutionControl {
@@ -114,25 +139,13 @@ class ExecutionControl {
                                       address_t addr);
   virtual void HandleAfterAtomicInst(THREADID tid, Inst *inst, OPCODE opcode,
                                      address_t addr);
-  virtual void HandlePthreadCreate(PthreadCreateContext *context);
-  virtual void HandlePthreadJoin(PthreadJoinContext *context);
-  virtual void HandlePthreadMutexTryLock(PthreadMutexTryLockContext *context);
-  virtual void HandlePthreadMutexLock(PthreadMutexLockContext *context);
-  virtual void HandlePthreadMutexUnlock(PthreadMutexUnlockContext *context);
-  virtual void HandlePthreadCondSignal(PthreadCondSignalContext *context);
-  virtual void HandlePthreadCondBroadcast(PthreadCondBroadcastContext *context);
-  virtual void HandlePthreadCondWait(PthreadCondWaitContext *context);
-  virtual void HandlePthreadCondTimedwait(PthreadCondTimedwaitContext *context);
-  virtual void HandlePthreadBarrierInit(PthreadBarrierInitContext *context);
-  virtual void HandlePthreadBarrierWait(PthreadBarrierWaitContext *context);
-  virtual void HandleSleep(SleepContext *context);
-  virtual void HandleUsleep(UsleepContext *context);
-  virtual void HandleSchedYield(SchedYieldContext *context);
-  virtual void HandleMalloc(MallocContext *context);
-  virtual void HandleCalloc(CallocContext *context);
-  virtual void HandleRealloc(ReallocContext *context);
-  virtual void HandleFree(FreeContext *context);
-  virtual void HandleValloc(VallocContext *context);
+  virtual void HandleBeforeCall(THREADID tid, Inst *inst, address_t target);
+  virtual void HandleAfterCall(THREADID tid, Inst *inst, address_t target,
+                               address_t ret);
+  virtual void HandleBeforeReturn(THREADID tid, Inst *inst, address_t target);
+  virtual void HandleAfterReturn(THREADID tid, Inst *inst, address_t target);
+  virtual void HandleBeforeWrapper(WrapperBase *wrapper);
+  virtual void HandleAfterWrapper(WrapperBase *wrapper);
 
   void LockKernel() { kernel_lock_->Lock(); }
   void UnlockKernel() { kernel_lock_->Unlock(); }
@@ -145,7 +158,9 @@ class ExecutionControl {
   thread_id_t GetParent();
   thread_id_t Self() { return PIN_ThreadUid(); }
   timestamp_t GetThdClk(THREADID tid) { return tls_thd_clock_[tid]; }
-  thread_id_t WaitForNewChild(PthreadCreateContext *context);
+
+  // TODO(jieyu): How to remove the dependency to the pthread_create wrapper.
+  thread_id_t WaitForNewChild(WRAPPER_CLASS(PthreadCreate) *wrapper);
   void ReplacePthreadCreateWrapper(IMG img);
   void ReplacePthreadWrappers(IMG img);
   void ReplaceYieldWrappers(IMG img);
@@ -156,6 +171,7 @@ class ExecutionControl {
   Descriptor desc_;
   LogFile *debug_file_;
   StaticInfo *sinfo_;
+  CallStackInfo *callstack_info_;
   AnalyzerContainer analyzers_;
   DebugAnalyzer *debug_analyzer_;
   volatile bool main_thread_started_;
@@ -194,30 +210,36 @@ class ExecutionControl {
   static void __BeforeAtomicInst(THREADID tid, Inst *inst, UINT32 opcode,
                                  ADDRINT addr);
   static void __AfterAtomicInst(THREADID tid, Inst *inst, UINT32 opcode);
-  // pthread wrappers
-  static void __PthreadCreate(PthreadCreateContext *context);
-  static void __PthreadJoin(PthreadJoinContext *context);
-  static void __PthreadMutexTryLock(PthreadMutexTryLockContext *context);
-  static void __PthreadMutexLock(PthreadMutexLockContext *context);
-  static void __PthreadMutexUnlock(PthreadMutexUnlockContext *context);
-  static void __PthreadCondSignal(PthreadCondSignalContext *context);
-  static void __PthreadCondBroadcast(PthreadCondBroadcastContext *context);
-  static void __PthreadCondWait(PthreadCondWaitContext *context);
-  static void __PthreadCondTimedwait(PthreadCondTimedwaitContext *context);
-  static void __PthreadBarrierInit(PthreadBarrierInitContext *context);
-  static void __PthreadBarrierWait(PthreadBarrierWaitContext *context);
-  // yield wrappers
-  static void __Sleep(SleepContext *context);
-  static void __Usleep(UsleepContext *context);
-  static void __SchedYield(SchedYieldContext *context);
-  // malloc wrappers
-  static void __Malloc(MallocContext *context);
-  static void __Calloc(CallocContext *context);
-  static void __Realloc(ReallocContext *context);
-  static void __Free(FreeContext *context);
-  static void __Valloc(VallocContext *context);
+  static void __BeforeCall(THREADID tid, Inst *inst, ADDRINT target);
+  static void __AfterCall(THREADID tid, Inst *inst, ADDRINT target,
+                          ADDRINT ret);
+  static void __BeforeReturn(THREADID tid, Inst *inst, ADDRINT target);
+  static void __AfterReturn(THREADID tid, Inst *inst, ADDRINT target);
 
   DISALLOW_COPY_CONSTRUCTORS(ExecutionControl);
+
+  // Declare wrapper handlers.
+  DECLARE_WRAPPER_HANDLER(PthreadCreate);
+  DECLARE_WRAPPER_HANDLER(PthreadJoin);
+  DECLARE_WRAPPER_HANDLER(PthreadMutexTryLock);
+  DECLARE_WRAPPER_HANDLER(PthreadMutexLock);
+  DECLARE_WRAPPER_HANDLER(PthreadMutexUnlock);
+  DECLARE_WRAPPER_HANDLER(PthreadCondSignal);
+  DECLARE_WRAPPER_HANDLER(PthreadCondBroadcast);
+  DECLARE_WRAPPER_HANDLER(PthreadCondWait);
+  DECLARE_WRAPPER_HANDLER(PthreadCondTimedwait);
+  DECLARE_WRAPPER_HANDLER(PthreadBarrierInit);
+  DECLARE_WRAPPER_HANDLER(PthreadBarrierWait);
+
+  DECLARE_WRAPPER_HANDLER(Sleep);
+  DECLARE_WRAPPER_HANDLER(Usleep);
+  DECLARE_WRAPPER_HANDLER(SchedYield);
+
+  DECLARE_WRAPPER_HANDLER(Malloc);
+  DECLARE_WRAPPER_HANDLER(Calloc);
+  DECLARE_WRAPPER_HANDLER(Realloc);
+  DECLARE_WRAPPER_HANDLER(Free);
+  DECLARE_WRAPPER_HANDLER(Valloc);
 };
 
 #endif

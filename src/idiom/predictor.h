@@ -353,7 +353,7 @@ class PredictorDeadlockInfo {
 // iRoot predictor which predicts iRoots to test.
 class Predictor : public Analyzer {
  public:
-  explicit Predictor(Knob *knob);
+  Predictor();
   ~Predictor();
 
   void Register();

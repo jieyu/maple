@@ -25,9 +25,8 @@
 
 namespace idiom {
 
-Predictor::Predictor(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+Predictor::Predictor()
+    : internal_lock_(NULL),
       sinfo_(NULL),
       iroot_db_(NULL),
       memo_(NULL),

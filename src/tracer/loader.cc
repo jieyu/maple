@@ -47,7 +47,7 @@ void Loader::HandlePreSetup() {
 
   knob_->RegisterStr("trace_log_path", "the trace log path", "trace-log");
 
-  debug_analyzer_ = new DebugAnalyzer(knob_);
+  debug_analyzer_ = new DebugAnalyzer;
   debug_analyzer_->Register();
 }
 

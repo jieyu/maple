@@ -49,14 +49,14 @@ def iroot_is_expected(r):
             e1.inst().debug_info() == source_name() + ' +37'):
             return True
         if (e0.is_mem_write() and
-            e0.inst().debug_info() == source_name() + ' +39' and
+            e0.inst().debug_info() == source_name() + ' +49' and
             e1.is_mem_read() and
             e1.inst().debug_info() == source_name() + ' +29'):
             return True
         if (e0.is_mem_read() and
             e0.inst().debug_info() == source_name() + ' +29' and
             e1.is_mem_write() and
-            e1.inst().debug_info() == source_name() + ' +39'):
+            e1.inst().debug_info() == source_name() + ' +49'):
             return True
     return False
 
@@ -64,14 +64,14 @@ def setup_profiler(profiler):
     profiler.knobs['ignore_lib'] = True
 
 def setup_testcase(testcase):
-    testcase.threshold = 4
+    testcase.threshold = 5
 
 def verify(profiler, testcase):
     sinfo = static_info.StaticInfo()
     sinfo.load(profiler.knobs['sinfo_out'])
     iroot_db = iroot.iRootDB(sinfo)
     iroot_db.load(profiler.knobs['iroot_out'])
-    if len(iroot_db.iroot_map) != 19:
+    if len(iroot_db.iroot_map) > 19 or len(iroot_db.iroot_map) < 18:
         logging.msg('iroot_db size mismatch\n')
         return False
     return True

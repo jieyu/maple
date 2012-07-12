@@ -33,9 +33,8 @@ namespace idiom {
 
 // public methods
 
-PredictorNew::PredictorNew(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+PredictorNew::PredictorNew()
+    : internal_lock_(NULL),
       sinfo_(NULL),
       iroot_db_(NULL),
       memo_(NULL),

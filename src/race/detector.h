@@ -31,7 +31,7 @@ namespace race {
 
 class Detector : public Analyzer {
  public:
-  explicit Detector(Knob *knob);
+  Detector();
   virtual ~Detector();
 
   virtual void Register();

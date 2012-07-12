@@ -37,6 +37,12 @@ class Knob {
   virtual int ValueInt(const std::string &name) = 0;
   virtual std::string ValueStr(const std::string &name) = 0;
 
+  static void Initialize(Knob *knob) { knob_ = knob; }
+  static Knob *Get() { return knob_; }
+
+ protected:
+  static Knob *knob_;
+
  private:
   DISALLOW_COPY_CONSTRUCTORS(Knob);
 };

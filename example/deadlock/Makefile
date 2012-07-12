@@ -1,5 +1,5 @@
 
-CXXFLAGS := -Wall -Werror -g -fno-omit-frame-pointer -pthread
+CXXFLAGS := -Werror -fno-omit-frame-pointer -pthread
 
 targets = $(basename $(wildcard *.cc))
 

@@ -423,8 +423,6 @@ class SchedulerCommon : public ExecutionControl {
   virtual void HandleThreadExit();
   virtual void HandleMain(THREADID tid, CONTEXT *ctxt);
   virtual void HandleThreadMain(THREADID tid, CONTEXT *ctxt);
-  virtual void HandlePthreadMutexLock(PthreadMutexLockContext *context);
-  virtual void HandlePthreadMutexUnlock(PthreadMutexUnlockContext *context);
 
   // virtual functions to be overrided
   virtual void Choose();
@@ -654,8 +652,6 @@ class SchedulerCommon : public ExecutionControl {
   static void __BeforeiRootMemRead(UINT32 idx, ADDRINT addr, UINT32 size);
   static void __BeforeiRootMemWrite(UINT32 idx, ADDRINT addr, UINT32 size);
   static void __AfteriRootMem(UINT32 idx);
-  static void __PthreadMutexLock(PthreadMutexLockContext *context);
-  static void __PthreadMutexUnlock(PthreadMutexUnlockContext *context);
   static void __WatchMemRead(Inst *inst, ADDRINT addr, UINT32 size,
                              BOOL cand);
   static void __WatchMemWrite(Inst *inst, ADDRINT addr, UINT32 size,
@@ -690,6 +686,10 @@ class SchedulerCommon : public ExecutionControl {
 
  private:
   DISALLOW_COPY_CONSTRUCTORS(SchedulerCommon);
+
+  // Override wrappers.
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadMutexLock);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadMutexUnlock);
 };
 
 } // namespace idiom

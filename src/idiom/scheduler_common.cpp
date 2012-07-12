@@ -360,55 +360,6 @@ void SchedulerCommon::HandleThreadMain(THREADID tid, CONTEXT *ctxt) {
   ExecutionControl::HandleThreadMain(tid, ctxt);
 }
 
-void SchedulerCommon::HandlePthreadMutexLock(PthreadMutexLockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  // check iRoot
-  CheckiRootBeforeMutexLock(inst, (address_t)context->mutex());
-
-  // call original function
-  PthreadMutexLockWrapper::CallOriginal(context);
-
-  // check iRoot
-  CheckiRootAfterMutexLock(inst, (address_t)context->mutex());
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-}
-
-void SchedulerCommon::HandlePthreadMutexUnlock(
-    PthreadMutexUnlockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  // check iRoot
-  CheckiRootBeforeMutexUnlock(inst, (address_t)context->mutex());
-
-  // call original function
-  PthreadMutexUnlockWrapper::CallOriginal(context);
-
-  // check iRoot
-  CheckiRootAfterMutexUnlock(inst, (address_t)context->mutex());
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-}
-
 void SchedulerCommon::Choose() {
   // this function should setup the curr_iroot_ field
   int target_iroot_id = knob_->ValueInt("target_iroot");
@@ -512,8 +463,8 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
 }
 
 void SchedulerCommon::ReplacePthreadMutexWrappers(IMG img) {
-  PthreadMutexLockWrapper::Replace(img, __PthreadMutexLock);
-  PthreadMutexUnlockWrapper::Replace(img, __PthreadMutexUnlock);
+  ACTIVATE_WRAPPER_HANDLER(PthreadMutexLock);
+  ACTIVATE_WRAPPER_HANDLER(PthreadMutexUnlock);
 }
 
 void SchedulerCommon::CheckiRootBeforeMutexLock(Inst *inst, address_t addr) {
@@ -13670,14 +13621,6 @@ void SchedulerCommon::__AfteriRootMem(UINT32 idx) {
   ((SchedulerCommon *)ctrl_)->HandleAfteriRootMem(idx);
 }
 
-void SchedulerCommon::__PthreadMutexLock(PthreadMutexLockContext *context) {
-  ((SchedulerCommon *)ctrl_)->HandlePthreadMutexLock(context);
-}
-
-void SchedulerCommon::__PthreadMutexUnlock(PthreadMutexUnlockContext *context) {
-  ((SchedulerCommon *)ctrl_)->HandlePthreadMutexUnlock(context);
-}
-
 void SchedulerCommon::__WatchMemRead(Inst *inst, ADDRINT addr, UINT32 size,
                                BOOL cand) {
   ((SchedulerCommon *)ctrl_)->HandleWatchMemRead(inst, addr, size, cand);
@@ -13690,6 +13633,60 @@ void SchedulerCommon::__WatchMemWrite(Inst *inst, ADDRINT addr, UINT32 size,
 
 void SchedulerCommon::__WatchInstCount(UINT32 c) {
   ((SchedulerCommon *)ctrl_)->HandleWatchInstCount(c);
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexLock, SchedulerCommon) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  // check iRoot
+  CheckiRootBeforeMutexLock(inst, (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  // check iRoot
+  CheckiRootAfterMutexLock(inst, (address_t)wrapper->arg0());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexUnlock, SchedulerCommon) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  // check iRoot
+  CheckiRootBeforeMutexUnlock(inst, (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  // check iRoot
+  CheckiRootAfterMutexUnlock(inst, (address_t)wrapper->arg0());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
 } // namespace idiom

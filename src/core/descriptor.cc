@@ -27,9 +27,11 @@ Descriptor::Descriptor()
       hook_yield_func_(false),
       hook_malloc_func_(false),
       hook_main_func_(false),
+      hook_call_return_(false),
       hook_syscall_(false),
       hook_signal_(false),
       track_inst_count_(false),
+      track_call_stack_(false),
       skip_stack_access_(true) {
   // empty
 }
@@ -42,9 +44,11 @@ void Descriptor::Merge(Descriptor *desc) {
   hook_yield_func_ = hook_yield_func_ || desc->hook_yield_func_;
   hook_malloc_func_ = hook_malloc_func_ || desc->hook_malloc_func_;
   hook_main_func_ = hook_main_func_ || desc->hook_main_func_;
+  hook_call_return_ = hook_call_return_ || desc->hook_call_return_;
   hook_syscall_ = hook_syscall_ || desc->hook_syscall_;
   hook_signal_ = hook_signal_ || desc->hook_signal_;
   track_inst_count_ = track_inst_count_ || desc->track_inst_count_;
+  track_call_stack_ = track_call_stack_ || desc->track_call_stack_;
   skip_stack_access_ = skip_stack_access_ && desc->skip_stack_access_;
 }
 

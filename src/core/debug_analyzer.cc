@@ -23,10 +23,12 @@ void DebugAnalyzer::Register() {
   knob_->RegisterBool("debug_mem", "whether debug mem accesses", "0");
   knob_->RegisterBool("debug_atomic", "whether debug atomic inst", "0");
   knob_->RegisterBool("debug_main", "whether debug main functions", "1");
+  knob_->RegisterBool("debug_call_return", "whether debug calls and returns", "0");
   knob_->RegisterBool("debug_pthread", "whether debug pthread functions", "1");
   knob_->RegisterBool("debug_malloc", "whether debug malloc functions", "1");
   knob_->RegisterBool("debug_syscall", "whether debug system calls", "0");
   knob_->RegisterBool("debug_track_clk", "whether track per thread clock", "1");
+  knob_->RegisterBool("debug_track_callstack", "whether track runtime call stack", "0");
 }
 
 bool DebugAnalyzer::Enabled() {
@@ -40,6 +42,8 @@ void DebugAnalyzer::Setup() {
     desc_.SetHookAtomicInst();
   if (knob_->ValueBool("debug_main"))
     desc_.SetHookMainFunc();
+  if (knob_->ValueBool("debug_call_return"))
+    desc_.SetHookCallReturn();
   if (knob_->ValueBool("debug_pthread"))
     desc_.SetHookPthreadFunc();
   if (knob_->ValueBool("debug_malloc"))
@@ -48,5 +52,7 @@ void DebugAnalyzer::Setup() {
     desc_.SetHookSyscall();
   if (knob_->ValueBool("debug_track_clk"))
     desc_.SetTrackInstCount();
+  if (knob_->ValueBool("debug_track_callstack"))
+    desc_.SetTrackCallStack();
 }
 

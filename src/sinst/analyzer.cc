@@ -23,9 +23,8 @@
 
 namespace sinst {
 
-SharedInstAnalyzer::SharedInstAnalyzer(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+SharedInstAnalyzer::SharedInstAnalyzer()
+    : internal_lock_(NULL),
       sinst_db_(NULL),
       unit_size_(4),
       filter_(NULL) {

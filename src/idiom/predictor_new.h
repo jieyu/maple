@@ -36,7 +36,7 @@ namespace idiom {
 
 class PredictorNew : public Analyzer {
  public:
-  explicit PredictorNew(Knob *knob);
+  PredictorNew();
   ~PredictorNew();
 
   void Register();

@@ -23,9 +23,8 @@
 
 namespace race {
 
-Detector::Detector(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+Detector::Detector()
+    : internal_lock_(NULL),
       race_db_(NULL),
       unit_size_(4),
       filter_(NULL) {

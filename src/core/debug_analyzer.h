@@ -27,7 +27,7 @@
 // Debug analyzer. The main function is to print every event.
 class DebugAnalyzer : public Analyzer {
  public:
-  explicit DebugAnalyzer(Knob *knob) : Analyzer(knob) {}
+  DebugAnalyzer() {}
   ~DebugAnalyzer() {}
 
   void Register();
@@ -137,6 +137,34 @@ class DebugAnalyzer : public Analyzer {
     DEBUG_FMT_PRINT_SAFE(
         "[T%lx] After Atomic Inst, inst='%s', type='%s', addr=0x%lx\n",
         curr_thd_id, inst->ToString().c_str(), type.c_str(), addr);
+  }
+
+  void BeforeCall(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                  Inst *inst, address_t target) {
+    DEBUG_FMT_PRINT_SAFE(
+        "[T%lx] Before Call, inst='%s', target=0x%lx\n",
+        curr_thd_id, inst->ToString().c_str(), target);
+  }
+
+  void AfterCall(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                 Inst *inst, address_t target, address_t ret) {
+    DEBUG_FMT_PRINT_SAFE(
+        "[T%lx] After Call, inst='%s', target=0x%lx, ret=0x%lx\n",
+        curr_thd_id, inst->ToString().c_str(), target, ret);
+  }
+
+  void BeforeReturn(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                    Inst *inst, address_t target) {
+    DEBUG_FMT_PRINT_SAFE(
+        "[T%lx] Before Return, inst='%s', target=0x%lx\n",
+        curr_thd_id, inst->ToString().c_str(), target);
+  }
+
+  void AfterReturn(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,
+                   Inst *inst, address_t target) {
+    DEBUG_FMT_PRINT_SAFE(
+        "[T%lx] After Return, inst='%s', target=0x%lx\n",
+        curr_thd_id, inst->ToString().c_str(), target);
   }
 
   void BeforePthreadCreate(thread_id_t curr_thd_id, timestamp_t curr_thd_clk,

@@ -24,7 +24,7 @@ from maple.regression import common
 """
 Expected Results (predicted iroots):
 ------------------------------------
-We should not predict more than 40 iroots.
+We should not predict more than 45 iroots.
 """
 
 def source_name():
@@ -41,7 +41,7 @@ def verify(profiler, testcase):
     sinfo.load(profiler.knobs['sinfo_out'])
     iroot_db = iroot.iRootDB(sinfo)
     iroot_db.load(profiler.knobs['iroot_out'])
-    if len(iroot_db.iroot_map) >= 40:
+    if len(iroot_db.iroot_map) >= 45:
         logging.msg('iroot_db size mismatch\n')
         return False
     return True

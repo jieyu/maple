@@ -168,25 +168,6 @@ class Controller : public ExecutionControl, public ControllerInterface {
   virtual void HandleImageUnload(IMG img, Image *image);
   virtual void HandleThreadStart();
   virtual void HandleThreadExit();
-  virtual void HandlePthreadCreate(PthreadCreateContext *context);
-  virtual void HandlePthreadJoin(PthreadJoinContext *context);
-  virtual void HandlePthreadMutexTryLock(PthreadMutexTryLockContext *context);
-  virtual void HandlePthreadMutexLock(PthreadMutexLockContext *context);
-  virtual void HandlePthreadMutexUnlock(PthreadMutexUnlockContext *context);
-  virtual void HandlePthreadCondSignal(PthreadCondSignalContext *context);
-  virtual void HandlePthreadCondBroadcast(PthreadCondBroadcastContext *context);
-  virtual void HandlePthreadCondWait(PthreadCondWaitContext *context);
-  virtual void HandlePthreadCondTimedwait(PthreadCondTimedwaitContext *context);
-  virtual void HandlePthreadBarrierInit(PthreadBarrierInitContext *context);
-  virtual void HandlePthreadBarrierWait(PthreadBarrierWaitContext *context);
-  virtual void HandleSleep(SleepContext *context);
-  virtual void HandleUsleep(UsleepContext *context);
-  virtual void HandleSchedYield(SchedYieldContext *context);
-  virtual void HandleMalloc(MallocContext *context);
-  virtual void HandleCalloc(CallocContext *context);
-  virtual void HandleRealloc(ReallocContext *context);
-  virtual void HandleFree(FreeContext *context);
-  virtual void HandleValloc(VallocContext *context);
   virtual void HandleSchedulerThread();
   virtual void HandleSchedulerThreadReclaim();
   virtual void HandleBeforeRaceRead(THREADID tid, Inst *inst,
@@ -292,6 +273,29 @@ class Controller : public ExecutionControl, public ControllerInterface {
   static void __AfterRaceRead2(THREADID tid, Inst *inst);
 
   DISALLOW_COPY_CONSTRUCTORS(Controller);
+
+  // Override wrappers.
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadCreate);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadJoin);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadMutexTryLock);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadMutexLock);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadMutexUnlock);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadCondSignal);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadCondBroadcast);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadCondWait);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadCondTimedwait);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadBarrierInit);
+  DECLARE_MEMBER_WRAPPER_HANDLER(PthreadBarrierWait);
+
+  DECLARE_MEMBER_WRAPPER_HANDLER(Sleep);
+  DECLARE_MEMBER_WRAPPER_HANDLER(Usleep);
+  DECLARE_MEMBER_WRAPPER_HANDLER(SchedYield);
+
+  DECLARE_MEMBER_WRAPPER_HANDLER(Malloc);
+  DECLARE_MEMBER_WRAPPER_HANDLER(Calloc);
+  DECLARE_MEMBER_WRAPPER_HANDLER(Realloc);
+  DECLARE_MEMBER_WRAPPER_HANDLER(Free);
+  DECLARE_MEMBER_WRAPPER_HANDLER(Valloc);
 };
 
 } // namespace systematic

@@ -27,9 +27,8 @@ namespace idiom {
 // each thread has a buffer of about 10M bytes
 #define ENTRY_QUEUE_LIMIT (1024 * 10)
 
-ObserverNew::ObserverNew(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+ObserverNew::ObserverNew()
+    : internal_lock_(NULL),
       sinfo_(NULL),
       iroot_db_(NULL),
       memo_(NULL),

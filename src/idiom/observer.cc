@@ -22,9 +22,8 @@
 
 namespace idiom {
 
-Observer::Observer(Knob *knob)
-    : Analyzer(knob),
-      internal_lock_(NULL),
+Observer::Observer()
+    : internal_lock_(NULL),
       sinfo_(NULL),
       iroot_db_(NULL),
       memo_(NULL),

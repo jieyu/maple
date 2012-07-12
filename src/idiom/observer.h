@@ -158,7 +158,7 @@ class ObserverLocalInfo {
 // iRoot observer which analyzes which iRoots are tested.
 class Observer : public Analyzer {
  public:
-  explicit Observer(Knob *knob);
+  Observer();
   ~Observer();
 
   void Register();

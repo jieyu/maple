@@ -45,7 +45,7 @@ class OfflineTool {
   virtual void HandleExit();
 
   Mutex *kernel_lock_;
-  CmdlineKnob *knob_;
+  Knob *knob_;
   LogFile *debug_file_;
   StaticInfo *sinfo_;
 

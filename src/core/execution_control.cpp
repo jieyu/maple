@@ -18,6 +18,8 @@
 
 #include "core/execution_control.hpp"
 
+#include <cassert>
+
 #include "core/logging.h"
 #include "core/stat.h"
 #include "core/debug_analyzer.h"
@@ -29,34 +31,36 @@ ExecutionControl::ExecutionControl()
       knob_(NULL),
       debug_file_(NULL),
       sinfo_(NULL),
+      callstack_info_(NULL),
       debug_analyzer_(NULL),
       main_thread_started_(false),
       main_thd_id_(INVALID_THD_ID) {
-  // empty
+  // Empty.
 }
 
 void ExecutionControl::Initialize() {
   logging_init(CreateMutex());
   stat_init(CreateMutex());
+  Knob::Initialize(new PinKnob);
   kernel_lock_ = CreateMutex();
+  knob_ = Knob::Get();
   ctrl_ = this;
 }
 
 void ExecutionControl::PreSetup() {
-  knob_ = new PinKnob;
   knob_->RegisterStr("debug_out", "the output file for the debug messages", "stdout");
   knob_->RegisterStr("stat_out", "the statistics output file", "stat.out");
   knob_->RegisterStr("sinfo_in", "the input static info database path", "sinfo.db");
   knob_->RegisterStr("sinfo_out", "the output static info database path", "sinfo.db");
 
-  debug_analyzer_ = new DebugAnalyzer(knob_);
+  debug_analyzer_ = new DebugAnalyzer;
   debug_analyzer_->Register();
 
   HandlePreSetup();
 }
 
 void ExecutionControl::PostSetup() {
-  // setup debug output
+  // Setup debug output.
   if (knob_->ValueStr("debug_out").compare("stderr") == 0) {
     debug_log->ResetLogFile();
     debug_log->RegisterLogFile(stderr_log_file);
@@ -70,19 +74,35 @@ void ExecutionControl::PostSetup() {
     debug_log->RegisterLogFile(debug_file_);
   }
 
-  // load static info
+  // Load static info.
   sinfo_ = new StaticInfo(CreateMutex());
   sinfo_->Load(knob_->ValueStr("sinfo_in"));
   if (!sinfo_->FindImage(PSEUDO_IMAGE_NAME))
     sinfo_->CreateImage(PSEUDO_IMAGE_NAME);
 
-  // add debug analzyer if necessary
+  // Add debug analyzer if necessary.
   if (debug_analyzer_->Enabled()) {
     debug_analyzer_->Setup();
     AddAnalyzer(debug_analyzer_);
   }
 
   HandlePostSetup();
+
+  // Setup call stack info if needed.
+  if (desc_.TrackCallStack()) {
+    callstack_info_ = new CallStackInfo(CreateMutex());
+    for (AnalyzerContainer::iterator it = analyzers_.begin();
+         it != analyzers_.end(); ++it) {
+      Analyzer *analyzer = *it;
+      if (analyzer->desc()->TrackCallStack()) {
+        analyzer->set_callstack_info(callstack_info_);
+      }
+    }
+    // Setup the call stack tracker.
+    CallStackTracker *callstack_tracker
+      = new CallStackTracker(callstack_info_);
+    AddAnalyzer(callstack_tracker);
+  }
 }
 
 void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
@@ -94,14 +114,14 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
   }
 
   for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-    // get the corresponding img of this trace
+    // Get the corresponding img of this trace.
     IMG img = GetImgByTrace(trace);
 
-    // instrumention to track inst count
+    // Instrumentation to track the inst count.
     if (desc_.TrackInstCount()) {
       if (!HandleIgnoreInstCount(img)) {
         if (desc_.HookMem() && BBLContainMemOp(bbl)) {
-          // also instrument memory accesses, need more accurate ticker
+          // Also instrument memory accesses, so need more accurate ticker.
           for (INS ins = BBL_InsHead(bbl); INS_Valid(ins);ins = INS_Next(ins)) {
             INS_InsertCall(ins, IPOINT_BEFORE,
                            (AFUNPTR)__InstCount,
@@ -110,7 +130,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
                            IARG_END);
           }
         } else {
-          // no instrumentation on memory accesses. bbl ticker is enough
+          // No instrumentation on memory accesses, so bbl ticker is enough.
           BBL_InsertCall(bbl, IPOINT_BEFORE,
                          (AFUNPTR)__InstCount2,
                          IARG_FAST_ANALYSIS_CALL,
@@ -119,15 +139,14 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
                          IARG_END);
         }
       }
-    } // end of if track inst count
+    } // if (desc_.TrackInstCount()) {
 
-    // instrumentation to track atomic inst
+    // Instrumentation to track atomic inst.
     if (desc_.HookAtomicInst()) {
       for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
         if (!INS_IsAtomicUpdate(ins))
           continue;
 
-        // get instruction
         Inst *inst = GetInst(INS_Address(ins));
         UpdateInstOpcode(inst, ins);
 
@@ -157,29 +176,28 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
                          IARG_END);
         }
       }
-    }
+    } // if (desc_.HookAtomicInst()) {
 
-    // decide whether to instrument mem access
+    // Decide whether to instrument mem access.
     if (HandleIgnoreMemAccess(img))
       continue;
 
-    // instrumentation to track mem accesses
+    // Instrumentation to track mem accesses.
     if (desc_.HookMem()) {
       for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-        // only track memory access instructions
+        // Only track memory access instructions.
         if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {
-          // skip stack access if necessary
+          // Skip stack access if necessary.
           if (desc_.SkipStackAccess()) {
             if (INS_IsStackRead(ins) || INS_IsStackWrite(ins)) {
               continue;
             }
           }
 
-          // get instruction
           Inst *inst = GetInst(INS_Address(ins));
           UpdateInstOpcode(inst, ins);
 
-          // instrument before mem accesses
+          // Instrument before mem accesses.
           if (desc_.HookBeforeMem()) {
             if (INS_IsMemoryRead(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
@@ -212,7 +230,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
             }
           }
 
-          // instrument after mem accesses
+          // Instrument after mem accesses.
           if (desc_.HookAfterMem()) {
             if (INS_IsMemoryRead(ins)) {
               if (INS_HasFallThrough(ins)) {
@@ -267,22 +285,60 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
                                IARG_END);
               }
             }
-          } // end of if hook after mem
-        } // end of if mem read or mem write
-      } // end of for ins
-    } // end of if hook mem
-  } // end of for bbl
+          } // if (desc_.HookAfterMem()) {
+        } // if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {
+      } // for (INS ins = BBL_InsHead(bbl); ...) {
+    } // if (desc_.HookMem()) {
+
+    // Instrumentation to track calls and returns.
+    if (desc_.HookCallReturn()) {
+      for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+        if (INS_IsCall(ins)) {
+          Inst *inst = GetInst(INS_Address(ins));
+          UpdateInstOpcode(inst, ins);
+
+          INS_InsertCall(ins, IPOINT_BEFORE,
+                         (AFUNPTR)__BeforeCall,
+                         IARG_THREAD_ID,
+                         IARG_PTR, inst,
+                         IARG_BRANCH_TARGET_ADDR,
+                         IARG_END);
+
+          INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
+                         (AFUNPTR)__AfterCall,
+                         IARG_THREAD_ID,
+                         IARG_PTR, inst,
+                         IARG_BRANCH_TARGET_ADDR,
+                         IARG_RETURN_IP,
+                         IARG_END);
+        }
+
+        if (INS_IsRet(ins)) {
+          Inst *inst = GetInst(INS_Address(ins));
+          UpdateInstOpcode(inst, ins);
+
+          INS_InsertCall(ins, IPOINT_BEFORE,
+                         (AFUNPTR)__BeforeReturn,
+                         IARG_THREAD_ID,
+                         IARG_PTR, inst,
+                         IARG_BRANCH_TARGET_ADDR,
+                         IARG_END);
+
+          INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
+                         (AFUNPTR)__AfterReturn,
+                         IARG_THREAD_ID,
+                         IARG_PTR, inst,
+                         IARG_BRANCH_TARGET_ADDR,
+                         IARG_END);
+        }
+      } // for (INS ins = BBL_InsHead(bbl); ...) {
+    } // if (desc_.HookCallReturn()) {
+  } // for (BBL bbl = TRACE_BblHead(trace); ...) {
 
   HandlePostInstrumentTrace(trace);
 }
 
 void ExecutionControl::ImageLoad(IMG img, VOID *v) {
-  // register wrappers
-  register_pthread_wrappers(img);
-  register_malloc_wrappers(img);
-  register_sched_wrappers(img);
-  register_unistd_wrappers(img);
-
   // replace functions using wrappers
   if (desc_.HookPthreadFunc())
     ReplacePthreadWrappers(img);
@@ -581,317 +637,51 @@ void ExecutionControl::HandleAfterAtomicInst(THREADID tid, Inst *inst,
                       inst, type, addr);
 }
 
-void ExecutionControl::HandlePthreadCreate(PthreadCreateContext *context) {
+void ExecutionControl::HandleBeforeCall(THREADID tid, Inst *inst,
+                                        address_t target) {
   thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCreate, self,
-                      GetThdClk(context->tid()), inst);
-
-  // call original function
-  PthreadCreateWrapper::CallOriginal(context);
-
-  // wait until the new child thread start
-  thread_id_t child_thd_id = WaitForNewChild(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCreate, self,
-                      GetThdClk(context->tid()), inst, child_thd_id);
+  timestamp_t curr_thd_clk = GetThdClk(tid);
+  CALL_ANALYSIS_FUNC2(CallReturn, BeforeCall, self, curr_thd_clk,
+                      inst, target);
 }
 
-void ExecutionControl::HandlePthreadJoin(PthreadJoinContext *context) {
+void ExecutionControl::HandleAfterCall(THREADID tid, Inst *inst,
+                                       address_t target, address_t ret) {
   thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // get child thd_id
-  thread_id_t child = GetThdID(context->thread());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadJoin, self,
-                      GetThdClk(context->tid()), inst, child);
-
-  // call original function
-  PthreadJoinWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadJoin, self,
-                      GetThdClk(context->tid()), inst, child);
+  timestamp_t curr_thd_clk = GetThdClk(tid);
+  CALL_ANALYSIS_FUNC2(CallReturn, AfterCall, self, curr_thd_clk,
+                      inst, target, ret);
 }
 
-void ExecutionControl::HandlePthreadMutexTryLock(
-    PthreadMutexTryLockContext *context) {
+void ExecutionControl::HandleBeforeReturn(THREADID tid, Inst *inst,
+                                          address_t target) {
   thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexTryLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  // call original function
-  PthreadMutexTryLockWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexTryLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex(), context->ret_val());
+  timestamp_t curr_thd_clk = GetThdClk(tid);
+  CALL_ANALYSIS_FUNC2(CallReturn, BeforeReturn, self, curr_thd_clk,
+                      inst, target);
 }
 
-void ExecutionControl::HandlePthreadMutexLock(
-    PthreadMutexLockContext *context) {
+void ExecutionControl::HandleAfterReturn(THREADID tid, Inst *inst,
+                                         address_t target) {
   thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  // call original function
-  PthreadMutexLockWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
+  timestamp_t curr_thd_clk = GetThdClk(tid);
+  CALL_ANALYSIS_FUNC2(CallReturn, AfterReturn, self, curr_thd_clk,
+                      inst, target);
 }
 
-void ExecutionControl::HandlePthreadMutexUnlock(
-    PthreadMutexUnlockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  // call original function
-  PthreadMutexUnlockWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
+void ExecutionControl::HandleBeforeWrapper(WrapperBase *wrapper) {
+  // Nothing.
 }
 
-void ExecutionControl::HandlePthreadCondSignal(
-    PthreadCondSignalContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondSignal, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-
-  // call original function
-  PthreadCondSignalWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondSignal, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-}
-
-void ExecutionControl::HandlePthreadCondBroadcast(
-    PthreadCondBroadcastContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondBroadcast, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-
-  // call original function
-  PthreadCondBroadcastWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondBroadcast, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-}
-
-void ExecutionControl::HandlePthreadCondWait(PthreadCondWaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(),
-                      (address_t)context->mutex());
-
-  // call original function
-  PthreadCondWaitWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-}
-
-void ExecutionControl::HandlePthreadCondTimedwait(
-    PthreadCondTimedwaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondTimedwait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-
-  // call original function
-  PthreadCondTimedwaitWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondTimedwait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-}
-
-void ExecutionControl::HandlePthreadBarrierInit(
-    PthreadBarrierInitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadBarrierInit, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier(), context->count());
-
-  // call original function
-  PthreadBarrierInitWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadBarrierInit, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier(), context->count());
-}
-
-void ExecutionControl::HandlePthreadBarrierWait(
-    PthreadBarrierWaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadBarrierWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier());
-
-  // call original function
-  PthreadBarrierWaitWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadBarrierWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier());
-}
-
-void ExecutionControl::HandleSleep(SleepContext *context) {
-  // call original function
-  SleepWrapper::CallOriginal(context);
-}
-
-void ExecutionControl::HandleUsleep(UsleepContext *context) {
-  // call original function
-  UsleepWrapper::CallOriginal(context);
-}
-
-void ExecutionControl::HandleSchedYield(SchedYieldContext *context) {
-  // call original function
-  SchedYieldWrapper::CallOriginal(context);
-}
-
-void ExecutionControl::HandleMalloc(MallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeMalloc, self,
-                      GetThdClk(context->tid()), inst, context->size());
-
-  // call original function
-  MallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterMalloc, self,
-                      GetThdClk(context->tid()), inst, context->size(),
-                      (address_t)context->ret_val());
-}
-
-void ExecutionControl::HandleCalloc(CallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeCalloc, self,
-                      GetThdClk(context->tid()), inst, context->nmemb(),
-                      context->size());
-
-  // call original function
-  CallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterCalloc, self,
-                      GetThdClk(context->tid()), inst, context->nmemb(),
-                      context->size(), (address_t)context->ret_val());
-}
-
-void ExecutionControl::HandleRealloc(ReallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeRealloc, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr(), context->size());
-
-  // call original function
-  ReallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterRealloc, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr(), context->size(),
-                      (address_t)context->ret_val());
-}
-
-void ExecutionControl::HandleFree(FreeContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeFree, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr());
-
-  // call original function
-  FreeWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterFree, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr());
-}
-
-void ExecutionControl::HandleValloc(VallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeValloc, self,
-                      GetThdClk(context->tid()), inst, context->size());
-
-  // call original function
-  VallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterValloc, self,
-                      GetThdClk(context->tid()), inst, context->size(),
-                      (address_t)context->ret_val());
+void ExecutionControl::HandleAfterWrapper(WrapperBase *wrapper) {
+  // Simulate a return if call stack is being tracked. This is because the
+  // return target will be changed by PIN (not transparent) for each function
+  // that has a wrapper defined.
+  if (desc_.TrackCallStack()) {
+    DEBUG_ASSERT(callstack_info_);
+    CallStack *callstack = callstack_info_->GetCallStack(Self());
+    callstack->OnReturn(NULL, wrapper->ret_addr());
+  }
 }
 
 void ExecutionControl::Abort(const std::string &msg) {
@@ -963,7 +753,8 @@ thread_id_t ExecutionControl::GetParent() {
     return INVALID_THD_ID;
 }
 
-thread_id_t ExecutionControl::WaitForNewChild(PthreadCreateContext *context) {
+thread_id_t ExecutionControl::WaitForNewChild(
+    WRAPPER_CLASS(PthreadCreate) *wrapper) {
   OS_THREAD_ID curr_os_tid = PIN_GetTid();
   pthread_t thread;
   size_t size;
@@ -980,8 +771,8 @@ thread_id_t ExecutionControl::WaitForNewChild(PthreadCreateContext *context) {
   thread_id_t child_thd_id = child_thd_map_[curr_os_tid];
   child_thd_map_.erase(curr_os_tid);
   // update pthread handle map
-  size = PIN_SafeCopy(&thread, context->thread(), sizeof(pthread_t));
-  DEBUG_ASSERT(size == sizeof(pthread_t));
+  size = PIN_SafeCopy(&thread, wrapper->arg0(), sizeof(pthread_t));
+  assert(size == sizeof(pthread_t));
   pthread_handle_map_[thread] = child_thd_id;
   UnlockKernel();
 
@@ -989,35 +780,35 @@ thread_id_t ExecutionControl::WaitForNewChild(PthreadCreateContext *context) {
 }
 
 void ExecutionControl::ReplacePthreadCreateWrapper(IMG img) {
-  PthreadCreateWrapper::Replace(img, __PthreadCreate);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCreate);
 }
 
 void ExecutionControl::ReplacePthreadWrappers(IMG img) {
-  PthreadCreateWrapper::Replace(img, __PthreadCreate);
-  PthreadJoinWrapper::Replace(img, __PthreadJoin);
-  PthreadMutexTryLockWrapper::Replace(img, __PthreadMutexTryLock);
-  PthreadMutexLockWrapper::Replace(img, __PthreadMutexLock);
-  PthreadMutexUnlockWrapper::Replace(img, __PthreadMutexUnlock);
-  PthreadCondSignalWrapper::Replace(img, __PthreadCondSignal);
-  PthreadCondBroadcastWrapper::Replace(img, __PthreadCondBroadcast);
-  PthreadCondWaitWrapper::Replace(img, __PthreadCondWait);
-  PthreadCondTimedwaitWrapper::Replace(img, __PthreadCondTimedwait);
-  PthreadBarrierInitWrapper::Replace(img, __PthreadBarrierInit);
-  PthreadBarrierWaitWrapper::Replace(img, __PthreadBarrierWait);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCreate);
+  ACTIVATE_WRAPPER_HANDLER(PthreadJoin);
+  ACTIVATE_WRAPPER_HANDLER(PthreadMutexTryLock);
+  ACTIVATE_WRAPPER_HANDLER(PthreadMutexLock);
+  ACTIVATE_WRAPPER_HANDLER(PthreadMutexUnlock);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCondSignal);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCondBroadcast);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCondWait);
+  ACTIVATE_WRAPPER_HANDLER(PthreadCondTimedwait);
+  ACTIVATE_WRAPPER_HANDLER(PthreadBarrierInit);
+  ACTIVATE_WRAPPER_HANDLER(PthreadBarrierWait);
 }
 
 void ExecutionControl::ReplaceMallocWrappers(IMG img) {
-  MallocWrapper::Replace(img, __Malloc);
-  CallocWrapper::Replace(img, __Calloc);
-  ReallocWrapper::Replace(img, __Realloc);
-  FreeWrapper::Replace(img, __Free);
-  VallocWrapper::Replace(img, __Valloc);
+  ACTIVATE_WRAPPER_HANDLER(Malloc);
+  ACTIVATE_WRAPPER_HANDLER(Calloc);
+  ACTIVATE_WRAPPER_HANDLER(Realloc);
+  ACTIVATE_WRAPPER_HANDLER(Free);
+  ACTIVATE_WRAPPER_HANDLER(Valloc);
 }
 
 void ExecutionControl::ReplaceYieldWrappers(IMG img) {
-  SleepWrapper::Replace(img, __Sleep);
-  UsleepWrapper::Replace(img, __Usleep);
-  SchedYieldWrapper::Replace(img, __SchedYield);
+  ACTIVATE_WRAPPER_HANDLER(Sleep);
+  ACTIVATE_WRAPPER_HANDLER(Usleep);
+  ACTIVATE_WRAPPER_HANDLER(SchedYield);
 }
 
 void ExecutionControl::InstrumentStartupFunc(IMG img) {
@@ -1128,85 +919,391 @@ void ExecutionControl::__AfterAtomicInst(THREADID tid, Inst *inst,
   ctrl_->HandleAfterAtomicInst(tid, inst, opcode, addr);
 }
 
-void ExecutionControl::__PthreadCreate(PthreadCreateContext *context) {
-  ctrl_->HandlePthreadCreate(context);
+void ExecutionControl::__BeforeCall(THREADID tid, Inst *inst,
+                                    ADDRINT target) {
+  ctrl_->HandleBeforeCall(tid, inst, target);
 }
 
-void ExecutionControl::__PthreadJoin(PthreadJoinContext *context) {
-  ctrl_->HandlePthreadJoin(context);
+void ExecutionControl::__AfterCall(THREADID tid, Inst *inst,
+                                   ADDRINT target, ADDRINT ret) {
+  ctrl_->HandleAfterCall(tid, inst, target, ret);
 }
 
-void ExecutionControl::__PthreadMutexTryLock(
-    PthreadMutexTryLockContext *context) {
-  ctrl_->HandlePthreadMutexTryLock(context);
+void ExecutionControl::__BeforeReturn(THREADID tid, Inst *inst,
+                                      ADDRINT target) {
+  ctrl_->HandleBeforeReturn(tid, inst, target);
 }
 
-void ExecutionControl::__PthreadMutexLock(PthreadMutexLockContext *context) {
-  ctrl_->HandlePthreadMutexLock(context);
+void ExecutionControl::__AfterReturn(THREADID tid, Inst *inst,
+                                     ADDRINT target) {
+  ctrl_->HandleAfterReturn(tid, inst, target);
 }
 
-void ExecutionControl::__PthreadMutexUnlock(
-    PthreadMutexUnlockContext *context) {
-  ctrl_->HandlePthreadMutexUnlock(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadCreate, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCreate,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst);
+
+  wrapper->CallOriginal();
+
+  // wait until the new child thread start
+  thread_id_t child_thd_id = WaitForNewChild(wrapper);
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCreate,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child_thd_id);
 }
 
-void ExecutionControl::__PthreadCondSignal(PthreadCondSignalContext *context) {
-  ctrl_->HandlePthreadCondSignal(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadJoin, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  // get child thd_id
+  thread_id_t child = GetThdID(wrapper->arg0());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadJoin,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child);
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadJoin,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child);
 }
 
-void ExecutionControl::__PthreadCondBroadcast(
-    PthreadCondBroadcastContext *context) {
-  ctrl_->HandlePthreadCondBroadcast(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexTryLock, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexTryLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexTryLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->ret_val());
 }
 
-void ExecutionControl::__PthreadCondWait(PthreadCondWaitContext *context) {
-  ctrl_->HandlePthreadCondWait(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexLock, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
-void ExecutionControl::__PthreadCondTimedwait(
-    PthreadCondTimedwaitContext *context) {
-  ctrl_->HandlePthreadCondTimedwait(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexUnlock, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
-void ExecutionControl::__PthreadBarrierInit(
-    PthreadBarrierInitContext *context) {
-  ctrl_->HandlePthreadBarrierInit(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondSignal, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondSignal,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondSignal,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
-void ExecutionControl::__PthreadBarrierWait(
-    PthreadBarrierWaitContext *context) {
-  ctrl_->HandlePthreadBarrierWait(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondBroadcast, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondBroadcast,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondBroadcast,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
-void ExecutionControl::__Sleep(SleepContext *context) {
-  ctrl_->HandleSleep(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondWait, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
 }
 
-void ExecutionControl::__Usleep(UsleepContext *context) {
-  ctrl_->HandleUsleep(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondTimedwait, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondTimedwait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondTimedwait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
 }
 
-void ExecutionControl::__SchedYield(SchedYieldContext *context) {
-  ctrl_->HandleSchedYield(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadBarrierInit, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadBarrierInit,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg2());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadBarrierInit,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg2());
 }
 
-void ExecutionControl::__Malloc(MallocContext *context) {
-  ctrl_->HandleMalloc(context);
+IMPLEMENT_WRAPPER_HANDLER(PthreadBarrierWait, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadBarrierWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadBarrierWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
 }
 
-void ExecutionControl::__Calloc(CallocContext *context) {
-  ctrl_->HandleCalloc(context);
+IMPLEMENT_WRAPPER_HANDLER(Sleep, ExecutionControl) {
+  wrapper->CallOriginal();
 }
 
-void ExecutionControl::__Realloc(ReallocContext *context) {
-  ctrl_->HandleRealloc(context);
+IMPLEMENT_WRAPPER_HANDLER(Usleep, ExecutionControl) {
+  wrapper->CallOriginal();
 }
 
-void ExecutionControl::__Free(FreeContext *context) {
-  ctrl_->HandleFree(context);
+IMPLEMENT_WRAPPER_HANDLER(SchedYield, ExecutionControl) {
+  wrapper->CallOriginal();
 }
 
-void ExecutionControl::__Valloc(VallocContext *context) {
-  ctrl_->HandleValloc(context);
+IMPLEMENT_WRAPPER_HANDLER(Malloc, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeMalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterMalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      (address_t)wrapper->ret_val());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Calloc, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeCalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      wrapper->arg1());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterCalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      wrapper->arg1(),
+                      (address_t)wrapper->ret_val());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Realloc, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeRealloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg1());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterRealloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg1(),
+                      (address_t)wrapper->ret_val());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Free, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeFree,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterFree,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Valloc, ExecutionControl) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeValloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterValloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      (address_t)wrapper->ret_val());
 }
 

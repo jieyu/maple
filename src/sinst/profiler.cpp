@@ -27,7 +27,7 @@ void Profiler::HandlePreSetup() {
   knob_->RegisterStr("sinst_in", "the input shared inst database path", "sinst.db");
   knob_->RegisterStr("sinst_out", "the output shared inst database path", "sinst.db");
 
-  sinst_analyzer_ = new SharedInstAnalyzer(knob_);
+  sinst_analyzer_ = new SharedInstAnalyzer;
   sinst_analyzer_->Register();
 }
 

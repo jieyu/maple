@@ -20,6 +20,7 @@
 #include "systematic/controller.hpp"
 
 #include <sys/resource.h>
+#include <cassert>
 #include <cerrno>
 
 namespace systematic {
@@ -373,498 +374,6 @@ void Controller::HandleThreadExit() {
   UnlockKernel();
 }
 
-void Controller::HandlePthreadCreate(PthreadCreateContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCreate, self,
-                      GetThdClk(context->tid()), inst);
-
-  LockKernel();
-  DEBUG_ASSERT(enable_table_[self]);
-  // schedule point
-  Schedule(self, 0, OP_THREAD_CREATE, inst);
-  UnlockKernel();
-
-  // call original function
-  PthreadCreateWrapper::CallOriginal(context);
-
-  // wait until the new child thread start
-  thread_id_t child_thd_id = WaitForNewChild(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCreate, self,
-                      GetThdClk(context->tid()), inst, child_thd_id);
-}
-
-void Controller::HandlePthreadJoin(PthreadJoinContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // get child thd_id
-  thread_id_t child = GetThdID(context->thread());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadJoin, self,
-                      GetThdClk(context->tid()), inst, child);
-
-  LockKernel();
-  DEBUG_ASSERT(enable_table_[self]);
-  JoinInfo *join_info = GetJoinInfo(child);
-  if (!join_info->exit) {
-    enable_table_[self] = false;
-    join_info->wait_queue.push_back(self);
-  }
-  // schedule point
-  Schedule(self, 0, OP_THREAD_JOIN, inst);
-  UnlockKernel();
-
-  // call original function
-  PthreadJoinWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadJoin, self,
-                      GetThdClk(context->tid()), inst, child);
-}
-
-void Controller::HandlePthreadMutexTryLock(
-    PthreadMutexTryLockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexTryLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadMutexTryLockWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t mutex_addr = (address_t)context->mutex();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
-    int ret_val = MutexTryLock(self, mutex_addr, inst);
-    UnlockKernel();
-    context->set_ret_val(ret_val);
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexTryLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex(), context->ret_val());
-}
-
-void Controller::HandlePthreadMutexLock(PthreadMutexLockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadMutexLockWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t mutex_addr = (address_t)context->mutex();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
-    MutexLock(self, mutex_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexLock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-}
-
-void Controller::HandlePthreadMutexUnlock(PthreadMutexUnlockContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadMutexUnlockWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t mutex_addr = (address_t)context->mutex();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
-    MutexUnlock(self, mutex_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadMutexUnlock, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->mutex());
-}
-
-void Controller::HandlePthreadCondSignal(PthreadCondSignalContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondSignal, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadCondSignalWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t cond_addr = (address_t)context->cond();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
-    CondSignal(self, cond_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondSignal, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-}
-
-void Controller::HandlePthreadCondBroadcast(
-    PthreadCondBroadcastContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondBroadcast, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadCondBroadcastWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t cond_addr = (address_t)context->cond();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
-    CondBroadcast(self, cond_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondBroadcast, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond());
-}
-
-void Controller::HandlePthreadCondWait(PthreadCondWaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadCondWaitWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t mutex_addr = (address_t)context->mutex();
-    address_t cond_addr = (address_t)context->cond();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
-    MutexUnlock(self, mutex_addr, inst);
-    CondWait(self, cond_addr, inst);
-    MutexLock(self, mutex_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-}
-
-void Controller::HandlePthreadCondTimedwait(
-    PthreadCondTimedwaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadCondTimedwait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadCondTimedwaitWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t mutex_addr = (address_t)context->mutex();
-    address_t cond_addr = (address_t)context->cond();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
-    MutexUnlock(self, mutex_addr, inst);
-    int ret_val = CondTimedwait(self, cond_addr, inst);
-    MutexLock(self, mutex_addr, inst);
-    UnlockKernel();
-    // set return value
-    context->set_ret_val(ret_val);
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadCondTimedwait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->cond(), (address_t)context->mutex());
-}
-
-void Controller::HandlePthreadBarrierInit(PthreadBarrierInitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadBarrierInit, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier(), context->count());
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadBarrierInitWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    DEBUG_ASSERT(enable_table_[self]);
-    address_t barrier_addr = (address_t)context->barrier();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(barrier_addr, unit_size_) == barrier_addr);
-    // schedule point
-    Schedule(self, barrier_addr, OP_BARRIER_INIT, inst);
-    // set the barrier count
-    BarrierInfo *barrier_info = GetBarrierInfo(barrier_addr);
-    DEBUG_ASSERT(barrier_info->wait_queue.empty());
-    barrier_info->count = context->count();
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadBarrierInit, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier(), context->count());
-}
-
-void Controller::HandlePthreadBarrierWait(PthreadBarrierWaitContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, BeforePthreadBarrierWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier());
-
-
-  if (sched_app_ && inst->image()->IsCommonLib()) {
-    // call original function
-    PthreadBarrierWaitWrapper::CallOriginal(context);
-  } else {
-    // simulated function
-    LockKernel();
-    address_t barrier_addr = (address_t)context->barrier();
-    DEBUG_ASSERT(UNIT_DOWN_ALIGN(barrier_addr, unit_size_) == barrier_addr);
-    BarrierWait(self, barrier_addr, inst);
-    UnlockKernel();
-  }
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(PthreadFunc, AfterPthreadBarrierWait, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->barrier());
-}
-
-void Controller::HandleSleep(SleepContext *context) {
-  if (scheduler_->desc()->HookYieldFunc()) {
-    // simulated function
-    thread_id_t self = Self();
-    Inst *inst = GetInst(context->ret_addr());
-
-    LockKernel();
-    DEBUG_ASSERT(enable_table_[self]);
-    // schedule point
-    Action *action = Schedule(self, 0, OP_SLEEP, inst);
-    action->set_yield(true);
-    UnlockKernel();
-  } else {
-    // call original function
-    SleepWrapper::CallOriginal(context);
-  }
-}
-
-void Controller::HandleUsleep(UsleepContext *context) {
-  if (scheduler_->desc()->HookYieldFunc()) {
-    // simulated function
-    thread_id_t self = Self();
-    Inst *inst = GetInst(context->ret_addr());
-
-    LockKernel();
-    DEBUG_ASSERT(enable_table_[self]);
-    // schedule point
-    Action *action = Schedule(self, 0, OP_USLEEP, inst);
-    action->set_yield(true);
-    UnlockKernel();
-  } else {
-    // call original function
-    UsleepWrapper::CallOriginal(context);
-  }
-}
-
-void Controller::HandleSchedYield(SchedYieldContext *context) {
-  if (scheduler_->desc()->HookYieldFunc()) {
-    // simulated function
-    thread_id_t self = Self();
-    Inst *inst = GetInst(context->ret_addr());
-
-    LockKernel();
-    DEBUG_ASSERT(enable_table_[self]);
-    // schedule point
-    Action *action = Schedule(self, 0, OP_SCHED_YIELD, inst);
-    action->set_yield(true);
-    UnlockKernel();
-  } else {
-    // call original function
-    SchedYieldWrapper::CallOriginal(context);
-  }
-}
-
-void Controller::HandleMalloc(MallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeMalloc, self,
-                      GetThdClk(context->tid()), inst, context->size());
-
-  // call original function
-  MallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterMalloc, self,
-                      GetThdClk(context->tid()), inst, context->size(),
-                      (address_t)context->ret_val());
-
-  // alloc dynamic region
-  LockKernel();
-  AllocDRegion((address_t)context->ret_val(), context->size(), inst);
-  UnlockKernel();
-}
-
-void Controller::HandleCalloc(CallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeCalloc, self,
-                      GetThdClk(context->tid()), inst, context->nmemb(),
-                      context->size());
-
-  // call original function
-  CallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterCalloc, self,
-                      GetThdClk(context->tid()), inst, context->nmemb(),
-                      context->size(), (address_t)context->ret_val());
-
-  // alloc dynamic region
-  LockKernel();
-  AllocDRegion((address_t)context->ret_val(), context->size(), inst);
-  UnlockKernel();
-}
-
-void Controller::HandleRealloc(ReallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeRealloc, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr(), context->size());
-
-  // free dynamic region
-  LockKernel();
-  FreeDRegion((address_t)context->ptr());
-  UnlockKernel();
-
-  // call original function
-  ReallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterRealloc, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr(), context->size(),
-                      (address_t)context->ret_val());
-
-  // alloc dynamic region
-  LockKernel();
-  AllocDRegion((address_t)context->ret_val(), context->size(), inst);
-  UnlockKernel();
-}
-
-void Controller::HandleFree(FreeContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeFree, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr());
-
-  // free dynamic region
-  LockKernel();
-  FreeDRegion((address_t)context->ptr());
-  UnlockKernel();
-
-  // call original function
-  FreeWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterFree, self,
-                      GetThdClk(context->tid()), inst,
-                      (address_t)context->ptr());
-}
-
-void Controller::HandleValloc(VallocContext *context) {
-  thread_id_t self = Self();
-  Inst *inst = GetInst(context->ret_addr());
-
-  // call analysis function (before)
-  CALL_ANALYSIS_FUNC2(MallocFunc, BeforeValloc, self,
-                      GetThdClk(context->tid()), inst, context->size());
-
-  // call original function
-  VallocWrapper::CallOriginal(context);
-
-  // call analysis function (after)
-  CALL_ANALYSIS_FUNC2(MallocFunc, AfterValloc, self,
-                      GetThdClk(context->tid()), inst, context->size(),
-                      (address_t)context->ret_val());
-
-  // alloc dynamic region
-  LockKernel();
-  AllocDRegion((address_t)context->ret_val(), context->size(), inst);
-  UnlockKernel();
-}
-
 void Controller::HandleSchedulerThread() {
   // this is the main entrance of the scheduler thread
   LockKernel();
@@ -890,7 +399,7 @@ void Controller::HandleSchedulerThreadReclaim() {
   success = PIN_WaitForThreadTermination(scheduler_thd_uid_,
                                          PIN_INFINITE_TIMEOUT,
                                          NULL);
-  DEBUG_ASSERT(success);
+  assert(success);
 }
 
 void Controller::HandleBeforeRaceRead(THREADID tid, Inst *inst,
@@ -1614,6 +1123,560 @@ void Controller::__AfterRaceRead2(THREADID tid, Inst *inst) {
   address_t addr = ((Controller *)ctrl_)->tls_race_read2_addr_[tid];
   address_t size = ((Controller *)ctrl_)->tls_race_read_size_[tid];
   ((Controller *)ctrl_)->HandleAfterRaceRead(tid, inst, addr, size);
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadCreate, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCreate,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst);
+
+  LockKernel();
+  DEBUG_ASSERT(enable_table_[self]);
+  // schedule point
+  Schedule(self, 0, OP_THREAD_CREATE, inst);
+  UnlockKernel();
+
+  wrapper->CallOriginal();
+
+  // wait until the new child thread start
+  thread_id_t child_thd_id = WaitForNewChild(wrapper);
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCreate,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child_thd_id);
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadJoin, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  // get child thd_id
+  thread_id_t child = GetThdID(wrapper->arg0());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadJoin,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child);
+
+  LockKernel();
+  DEBUG_ASSERT(enable_table_[self]);
+  JoinInfo *join_info = GetJoinInfo(child);
+  if (!join_info->exit) {
+    enable_table_[self] = false;
+    join_info->wait_queue.push_back(self);
+  }
+  // schedule point
+  Schedule(self, 0, OP_THREAD_JOIN, inst);
+  UnlockKernel();
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadJoin,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      child);
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexTryLock, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexTryLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t mutex_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
+    int ret_val = MutexTryLock(self, mutex_addr, inst);
+    UnlockKernel();
+    wrapper->set_ret_val(ret_val);
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexTryLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->ret_val());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexLock, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t mutex_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
+    MutexLock(self, mutex_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexLock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadMutexUnlock, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t mutex_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
+    MutexUnlock(self, mutex_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadMutexUnlock,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondSignal, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondSignal,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t cond_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
+    CondSignal(self, cond_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondSignal,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondBroadcast, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondBroadcast,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t cond_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
+    CondBroadcast(self, cond_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondBroadcast,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondWait, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t cond_addr = (address_t)wrapper->arg0();
+    address_t mutex_addr = (address_t)wrapper->arg1();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
+    MutexUnlock(self, mutex_addr, inst);
+    CondWait(self, cond_addr, inst);
+    MutexLock(self, mutex_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadCondTimedwait, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadCondTimedwait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t cond_addr = (address_t)wrapper->arg0();
+    address_t mutex_addr = (address_t)wrapper->arg1();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(cond_addr, unit_size_) == cond_addr);
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(mutex_addr, unit_size_) == mutex_addr);
+    MutexUnlock(self, mutex_addr, inst);
+    int ret_val = CondTimedwait(self, cond_addr, inst);
+    MutexLock(self, mutex_addr, inst);
+    UnlockKernel();
+    // set return value
+    wrapper->set_ret_val(ret_val);
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadCondTimedwait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      (address_t)wrapper->arg1());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadBarrierInit, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadBarrierInit,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg2());
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    DEBUG_ASSERT(enable_table_[self]);
+    address_t barrier_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(barrier_addr, unit_size_) == barrier_addr);
+    // schedule point
+    Schedule(self, barrier_addr, OP_BARRIER_INIT, inst);
+    // set the barrier count
+    BarrierInfo *barrier_info = GetBarrierInfo(barrier_addr);
+    DEBUG_ASSERT(barrier_info->wait_queue.empty());
+    barrier_info->count = wrapper->arg2();
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadBarrierInit,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg2());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(PthreadBarrierWait, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      BeforePthreadBarrierWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+
+  if (sched_app_ && inst->image()->IsCommonLib()) {
+    wrapper->CallOriginal();
+  } else {
+    // simulated function
+    LockKernel();
+    address_t barrier_addr = (address_t)wrapper->arg0();
+    DEBUG_ASSERT(UNIT_DOWN_ALIGN(barrier_addr, unit_size_) == barrier_addr);
+    BarrierWait(self, barrier_addr, inst);
+    UnlockKernel();
+  }
+
+  CALL_ANALYSIS_FUNC2(PthreadFunc,
+                      AfterPthreadBarrierWait,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Sleep, Controller) {
+  if (scheduler_->desc()->HookYieldFunc()) {
+    // simulated function
+    thread_id_t self = Self();
+    Inst *inst = GetInst(wrapper->ret_addr());
+
+    LockKernel();
+    DEBUG_ASSERT(enable_table_[self]);
+    // schedule point
+    Action *action = Schedule(self, 0, OP_SLEEP, inst);
+    action->set_yield(true);
+    UnlockKernel();
+  } else {
+    wrapper->CallOriginal();
+  }
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Usleep, Controller) {
+  if (scheduler_->desc()->HookYieldFunc()) {
+    // simulated function
+    thread_id_t self = Self();
+    Inst *inst = GetInst(wrapper->ret_addr());
+
+    LockKernel();
+    DEBUG_ASSERT(enable_table_[self]);
+    // schedule point
+    Action *action = Schedule(self, 0, OP_USLEEP, inst);
+    action->set_yield(true);
+    UnlockKernel();
+  } else {
+    wrapper->CallOriginal();
+  }
+}
+
+IMPLEMENT_WRAPPER_HANDLER(SchedYield, Controller) {
+  if (scheduler_->desc()->HookYieldFunc()) {
+    // simulated function
+    thread_id_t self = Self();
+    Inst *inst = GetInst(wrapper->ret_addr());
+
+    LockKernel();
+    DEBUG_ASSERT(enable_table_[self]);
+    // schedule point
+    Action *action = Schedule(self, 0, OP_SCHED_YIELD, inst);
+    action->set_yield(true);
+    UnlockKernel();
+  } else {
+    wrapper->CallOriginal();
+  }
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Malloc, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeMalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterMalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      (address_t)wrapper->ret_val());
+
+  // alloc dynamic region
+  LockKernel();
+  AllocDRegion((address_t)wrapper->ret_val(), wrapper->arg0(), inst);
+  UnlockKernel();
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Calloc, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeCalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      wrapper->arg1());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterCalloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      wrapper->arg1(),
+                      (address_t)wrapper->ret_val());
+
+  // alloc dynamic region
+  LockKernel();
+  size_t size = wrapper->arg0() * wrapper->arg1();
+  AllocDRegion((address_t)wrapper->ret_val(), size, inst);
+  UnlockKernel();
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Realloc, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeRealloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg1());
+
+  // free dynamic region
+  LockKernel();
+  FreeDRegion((address_t)wrapper->arg0());
+  UnlockKernel();
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterRealloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0(),
+                      wrapper->arg1(),
+                      (address_t)wrapper->ret_val());
+
+  // alloc dynamic region
+  LockKernel();
+  AllocDRegion((address_t)wrapper->ret_val(), wrapper->arg1(), inst);
+  UnlockKernel();
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Free, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeFree,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+
+  // free dynamic region
+  LockKernel();
+  FreeDRegion((address_t)wrapper->arg0());
+  UnlockKernel();
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterFree,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      (address_t)wrapper->arg0());
+}
+
+IMPLEMENT_WRAPPER_HANDLER(Valloc, Controller) {
+  thread_id_t self = Self();
+  Inst *inst = GetInst(wrapper->ret_addr());
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      BeforeValloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0());
+
+  wrapper->CallOriginal();
+
+  CALL_ANALYSIS_FUNC2(MallocFunc,
+                      AfterValloc,
+                      self,
+                      GetThdClk(wrapper->tid()),
+                      inst,
+                      wrapper->arg0(),
+                      (address_t)wrapper->ret_val());
+
+  // alloc dynamic region
+  LockKernel();
+  AllocDRegion((address_t)wrapper->ret_val(), wrapper->arg0(), inst);
+  UnlockKernel();
 }
 
 } // namespace systematic

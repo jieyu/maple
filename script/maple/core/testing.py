@@ -52,7 +52,7 @@ class Test(object):
         self.inputs.append(input)
     def get_input(self, input_idx):
         assert input_idx < len(self.inputs)
-        self.inputs[input_idx]
+        return self.inputs[input_idx]
     def default_input(self):
         assert len(self.inputs) > 0
         return self.inputs[0]

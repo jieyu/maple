@@ -21,6 +21,10 @@
 
 #include "pin.H"
 
+#include <pthread.h>
+#include <sched.h>
+#include <unistd.h>
+
 #include <cassert>
 
 #include <map>
@@ -415,31 +419,31 @@ class WrapperFactory {
   } while (0)
 
 // Declare wrappers.
-WRAPPER(Malloc, "malloc", "libc", "malloc", void *(size_t));
-WRAPPER(Calloc, "calloc", "libc", "malloc", void *(size_t, size_t));
-WRAPPER(Realloc, "realloc", "libc", "malloc", void *(void *, size_t));
-WRAPPER(Free, "free", "libc", "malloc", void(void *));
-WRAPPER(Valloc, "valloc", "libc", "malloc", void *(size_t));
+WRAPPER(Malloc, "malloc", "libc.so", "malloc", void *(size_t));
+WRAPPER(Calloc, "calloc", "libc.so", "malloc", void *(size_t, size_t));
+WRAPPER(Realloc, "realloc", "libc.so", "malloc", void *(void *, size_t));
+WRAPPER(Free, "free", "libc.so", "malloc", void(void *));
+WRAPPER(Valloc, "valloc", "libc.so", "malloc", void *(size_t));
 
-WRAPPER(Sleep, "sleep", "libc", "unistd", unsigned int(unsigned int));
-WRAPPER(Usleep, "usleep", "libc", "unistd", int(useconds_t));
+WRAPPER(Sleep, "sleep", "libc.so", "unistd", unsigned int(unsigned int));
+WRAPPER(Usleep, "usleep", "libc.so", "unistd", int(useconds_t));
 
-WRAPPER(SchedSetScheduler, "sched_setscheduler", "libc", "sched", int(pid_t, int, struct sched_param *));
-WRAPPER(SchedYield, "sched_yield", "libc", "sched", int(void));
-WRAPPER(SchedSetAffinity, "sched_setaffinity", "libc", "sched", int(pid_t, size_t, cpu_set_t *));
-WRAPPER(SetPriority, "setpriority", "libc", "sched", int(int, int, int));
+WRAPPER(SchedSetScheduler, "sched_setscheduler", "libc.so", "sched", int(pid_t, int, struct sched_param *));
+WRAPPER(SchedYield, "sched_yield", "libc.so", "sched", int(void));
+WRAPPER(SchedSetAffinity, "sched_setaffinity", "libc.so", "sched", int(pid_t, size_t, cpu_set_t *));
+WRAPPER(SetPriority, "setpriority", "libc.so", "sched", int(int, int, int));
 
-WRAPPER(PthreadCreate, "pthread_create", "libpthread", "pthread", int(pthread_t *, pthread_attr_t *, void *(*)(void *), void *));
-WRAPPER(PthreadJoin, "pthread_join", "libpthread", "pthread", int(pthread_t, void **));
-WRAPPER(PthreadMutexTryLock, "pthread_mutex_trylock", "libpthread", "pthread", int(pthread_mutex_t *));
-WRAPPER(PthreadMutexLock, "pthread_mutex_lock", "libpthread", "pthread", int(pthread_mutex_t *));
-WRAPPER(PthreadMutexUnlock, "pthread_mutex_unlock", "libpthread", "pthread", int(pthread_mutex_t *));
-WRAPPER(PthreadCondSignal, "pthread_cond_signal", "libpthread", "pthread", int(pthread_cond_t *));
-WRAPPER(PthreadCondBroadcast, "pthread_cond_broadcast", "libpthread", "pthread", int(pthread_cond_t *));
-WRAPPER(PthreadCondWait, "pthread_cond_wait", "libpthread", "pthread", int(pthread_cond_t *, pthread_mutex_t *));
-WRAPPER(PthreadCondTimedwait, "pthread_cond_timedwait", "libpthread", "pthread", int(pthread_cond_t *, pthread_mutex_t *, struct timespec *));
-WRAPPER(PthreadBarrierInit, "pthread_barrier_init", "libpthread", "pthread", int(pthread_barrier_t *, pthread_barrierattr_t *, unsigned int));
-WRAPPER(PthreadBarrierWait, "pthread_barrier_wait", "libpthread", "pthread", int(pthread_barrier_t *));
+WRAPPER(PthreadCreate, "pthread_create", "libpthread.so", "pthread", int(pthread_t *, pthread_attr_t *, void *(*)(void *), void *));
+WRAPPER(PthreadJoin, "pthread_join", "libpthread.so", "pthread", int(pthread_t, void **));
+WRAPPER(PthreadMutexTryLock, "pthread_mutex_trylock", "libpthread.so", "pthread", int(pthread_mutex_t *));
+WRAPPER(PthreadMutexLock, "pthread_mutex_lock", "libpthread.so", "pthread", int(pthread_mutex_t *));
+WRAPPER(PthreadMutexUnlock, "pthread_mutex_unlock", "libpthread.so", "pthread", int(pthread_mutex_t *));
+WRAPPER(PthreadCondSignal, "pthread_cond_signal", "libpthread.so", "pthread", int(pthread_cond_t *));
+WRAPPER(PthreadCondBroadcast, "pthread_cond_broadcast", "libpthread.so", "pthread", int(pthread_cond_t *));
+WRAPPER(PthreadCondWait, "pthread_cond_wait", "libpthread.so", "pthread", int(pthread_cond_t *, pthread_mutex_t *));
+WRAPPER(PthreadCondTimedwait, "pthread_cond_timedwait", "libpthread.so", "pthread", int(pthread_cond_t *, pthread_mutex_t *, struct timespec *));
+WRAPPER(PthreadBarrierInit, "pthread_barrier_init", "libpthread.so", "pthread", int(pthread_barrier_t *, pthread_barrierattr_t *, unsigned int));
+WRAPPER(PthreadBarrierWait, "pthread_barrier_wait", "libpthread.so", "pthread", int(pthread_barrier_t *));
 
 #endif // end of #ifndef CORE_WRAPPER_HPP_
 

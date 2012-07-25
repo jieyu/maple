@@ -18,39 +18,7 @@ Authors - Jie Yu (jieyu@umich.edu)
 import os
 from maple.core import config
 from maple.core import pintool
-
-class Scheduler(object):
-    def __init__(self, name):
-        self.name = name
-        self.knob_types = {}
-        self.knob_defaults = {}
-        self.knob_helps = {}
-        self.knob_metavars = {}
-        self.knobs = {}
-    def register_knob(self, name, type, default, help, metavar=''):
-        self.knob_types[name] = type
-        self.knob_defaults[name] = default
-        self.knob_helps[name] = help
-        self.knob_metavars[name] = metavar
-        self.knobs[name] = default
-
-class RandomScheduler(Scheduler):
-    def __init__(self):
-        Scheduler.__init__(self, 'random_scheduler')
-        self.register_knob('enable_random_scheduler', 'bool', False, 'whether use the random scheduler')
-
-class ChessScheduler(Scheduler):
-    def __init__(self):
-        Scheduler.__init__(self, 'chess_scheduler')
-        self.register_knob('enable_chess_scheduler', 'bool', False, 'whether use the CHESS scheduler')
-        self.register_knob('fair', 'bool', True, 'whether enable the fair control module')
-        self.register_knob('pb', 'bool', True, 'whether enable preemption bound search')
-        self.register_knob('por', 'bool', True, 'whether enable parital order reduction')
-        self.register_knob('abort_diverge', 'bool', True, 'whether abort when divergence happens')
-        self.register_knob('pb_limit', 'int', 2, 'the maximum number of preemption an execution can have', 'LIMIT')
-        self.register_knob('search_in', 'string', 'search.db', 'the input file that contains the search information', 'PATH')
-        self.register_knob('search_out', 'string', 'search.db', 'the output file that contains the search information', 'PATH')
-        self.register_knob('por_info_path', 'string', 'por-info', 'the dir path that stores the partial order reduction information', 'PATH')
+from maple.systematic import scheduler
 
 class Controller(pintool.Pintool):
     def __init__(self):
@@ -69,16 +37,11 @@ class Controller(pintool.Pintool):
         self.register_knob('program_out', 'string', 'program.db', 'the output database for the modeled program', 'PATH')
         self.register_knob('race_in', 'string', 'race.db', 'the input race database path', 'PATH')
         self.register_knob('race_out', 'string', 'race.db', 'the output race database path', 'PATH')
-        self.add_scheduler(RandomScheduler())
-        self.add_scheduler(ChessScheduler())
+        self.add_scheduler(scheduler.RandomScheduler())
+        self.add_scheduler(scheduler.ChessScheduler())
     def so_path(self):
         return os.path.join(config.build_home(self.debug), 'systematic_controller.so')
     def add_scheduler(self, s):
+        self.merge_knob(s)
         self.schedulers[s.name] = s
-        for k, v in s.knobs.iteritems():
-            self.knobs[k] = v
-            self.knob_types[k] = s.knob_types[k]
-            self.knob_defaults[k] = s.knob_defaults[k]
-            self.knob_helps[k] = s.knob_helps[k]
-            self.knob_metavars[k] = s.knob_metavars[k]
 

@@ -18,10 +18,6 @@
 
 #include "core/wrapper.hpp"
 
-#include <pthread.h>
-#include <sched.h>
-#include <unistd.h>
-
 // The singleton instance for WrapperFactory.
 WrapperFactory *WrapperFactory::instance_ = NULL;
 

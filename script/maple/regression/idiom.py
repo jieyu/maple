@@ -52,10 +52,13 @@ def idiom_predictor(suite):
     module = imp.load_module(testcase, f, p, d)
     f.close()
     flags = common.default_flags(suite)
+    if hasattr(module, 'disabled'):
+        common.echo(suite, 'disabled!')
+        return True
     if hasattr(module, 'setup_flags'):
         module.setup_flags(flags)
     if not common.compile(source_path, target_path, flags, True):
-        common.echo(suite, False, 'compile error')
+        common.echo(suite, 'failed! compile error')
         return False
     pin = pintool.Pin(config.pin_home())
     profiler = idiom_pintool.Profiler()
@@ -71,11 +74,14 @@ def idiom_predictor(suite):
     testcase.run()
     logging.message_on()
     if not hasattr(module, 'verify'):
-        common.echo(suite, False, 'no verify')
+        common.echo(suite, 'failed! no verify')
         return False
     else:
         success = module.verify(profiler, testcase)
-        common.echo(suite, success, '')
+        if success:
+            common.echo(suite, 'succeeded!')
+        else:
+            common.echo(suite, 'failed!')
         return success
 
 def idiom_observer(suite):
@@ -90,10 +96,13 @@ def idiom_observer(suite):
     module = imp.load_module(testcase, f, p, d)
     f.close()
     flags = common.default_flags(suite)
+    if hasattr(module, 'disabled'):
+        common.echo(suite, 'disabled!')
+        return True
     if hasattr(module, 'setup_flags'):
         module.setup_flags(flags)
     if not common.compile(source_path, target_path, flags, True):
-        common.echo(suite, False, 'compile error')
+        common.echo(suite, 'failed! compile error')
         return False
     pin = pintool.Pin(config.pin_home())
     profiler = idiom_pintool.Profiler()
@@ -109,11 +118,14 @@ def idiom_observer(suite):
     testcase.run()
     logging.message_on()
     if not hasattr(module, 'verify'):
-        common.echo(suite, False, 'no verify')
+        common.echo(suite, 'failed! no verify')
         return False
     else:
         success = module.verify(profiler, testcase)
-        common.echo(suite, success, '')
+        if success:
+            common.echo(suite, 'succeeded!')
+        else:
+            common.echo(suite, 'failed!')
         return success
 
 def handle(suite):
@@ -125,17 +137,23 @@ def handle(suite):
         return not fail
     elif common.is_testcase(suite):
         handler_name = '_'.join(suite.split('.')[:-1])
-        return eval('%s(suite)' % handler_name)
+        if not eval('%s(suite)' % handler_name):
+            backupdir = os.getcwd() + '_' + suite
+            if not os.path.exists(backupdir):
+                shutil.copytree(os.getcwd(), backupdir)
+            return False
+        else:
+            return True
 
 def main(suite, argv):
-    currdir = os.getcwd()
-    workdir = os.path.join(currdir, 'regression-idiom-workdir')
+    basedir = os.getcwd()
+    workdir = os.path.join(basedir, 'regression-workdir')
     if not os.path.exists(workdir):
         os.mkdir(workdir)
     os.chdir(workdir)
-    if handle(suite):
-        shutil.rmtree(workdir)
-    os.chdir(currdir)
+    handle(suite)
+    os.chdir(basedir)
+    shutil.rmtree(workdir)
 
 if __name__ == '__main__':
     main('idiom', sys.argv[1:])

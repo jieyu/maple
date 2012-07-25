@@ -60,8 +60,10 @@ def benchmark_home(name):
     if host_name() == 'eden':
         bench_home['memcached'] = '/opt/benchmark/memcached/memcached-1.4.4'
     if host_name() == 'd-106-219':
+        bench_home['pbzip2_bug_unknown'] = '/opt/project/eden-software/apps/pbzip2-0.9.5'
         bench_home['httperf'] = '/opt/httperf/httperf-0.9.0'
         bench_home['apache'] = '/opt/project/eden-software/bugs/apache/httpd-2.0.48'
+        bench_home['mysql_bug_791'] = '/opt/bug/mysql-bug-791/mysql-4.0.12'
     if host_name() == 'bowser':
         bench_home['splash2'] = '/x/jieyu/benchmark/splash2'
         bench_home['parsec_1_0'] = '/x/jieyu/benchmark/parsec/parsec-1.0'

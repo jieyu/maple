@@ -24,6 +24,7 @@ from maple.core import logging
 from maple.core import pintool
 from maple.core import static_info
 from maple.core import testing
+from maple.pct import history as pct_history
 from maple.race import pintool as race_pintool
 from maple.idiom import iroot
 from maple.idiom import memo
@@ -100,9 +101,19 @@ def __display_test_history_summary(output, options):
     sinfo.load(options.sinfo_in)
     iroot_db = iroot.iRootDB(sinfo)
     iroot_db.load(options.iroot_in)
-    test_history = idiom_history.TestHistory(sinfo, iroot_db)
-    test_history.load(options.test_history)
-    test_history.display_summary(output)
+    history = idiom_history.TestHistory(sinfo, iroot_db)
+    history.load(options.test_history)
+    history.display_summary(output)
+
+def __display_pct_history(output, options):
+    history = pct_history.History()
+    history.load(options.pct_history)
+    history.display(output)
+
+def __display_pct_history_summary(output, options):
+    history = pct_history.History()
+    history.load(options.pct_history)
+    history.display_summary(output)
 
 def valid_display_set():
     result = set()
@@ -195,6 +206,14 @@ def register_display_options(parser):
             default='test.histo',
             metavar='PATH',
             help='the test history path')
+    parser.add_option(
+            '--pct_history',
+            action='store',
+            type='string',
+            dest='pct_history',
+            default='pct.histo',
+            metavar='PATH',
+            help='the PCT history path')
 
 def __command_display(argv):
     parser = optparse.OptionParser(display_usage())
@@ -219,6 +238,129 @@ def __command_display(argv):
         pass
     else:
         output.close()
+
+def __modify_memo_input_change(options):
+    if not os.path.exists(options.memo_in):
+        return
+    sinfo = static_info.StaticInfo()
+    sinfo.load(options.sinfo_in)
+    iroot_db = iroot.iRootDB(sinfo)
+    iroot_db.load(options.iroot_in)
+    memo_db = memo.Memo(sinfo, iroot_db)
+    memo_db.load(options.memo_in)
+    memo_db.clear_predicted_set()
+    memo_db.clear_candidate_map()
+    memo_db.save(options.memo_out)
+    logging.msg('memo input change done!\n')
+
+def __modify_memo_mark_unexposed_failed(options):
+    if not os.path.exists(options.memo_in):
+        return
+    sinfo = static_info.StaticInfo()
+    sinfo.load(options.sinfo_in)
+    iroot_db = iroot.iRootDB(sinfo)
+    iroot_db.load(options.iroot_in)
+    memo_db = memo.Memo(sinfo, iroot_db)
+    memo_db.load(options.memo_in)
+    memo_db.mark_unexposed_failed()
+    memo_db.save(options.memo_out)
+    logging.msg('memo mark unexposed failed done!\n')
+
+def __modify_memo_refine_candidate(options):
+    if not os.path.exists(options.memo_in):
+        return
+    sinfo = static_info.StaticInfo()
+    sinfo.load(options.sinfo_in)
+    iroot_db = iroot.iRootDB(sinfo)
+    iroot_db.load(options.iroot_in)
+    memo_db = memo.Memo(sinfo, iroot_db)
+    memo_db.load(options.memo_in)
+    memo_db.refine_candidate(options.memo_failed)
+    memo_db.save(options.memo_out)
+    logging.msg('memo refine candidate done!\n')
+
+def valid_modify_set():
+    result = set()
+    for name in dir(sys.modules[__name__]):
+        idx = name.find('__modify_')
+        if idx != -1:
+            result.add(name[idx+9:])
+    return result
+
+def valid_modify(modify):
+    return modify in valid_modify_set()
+
+def modify_usage():
+    usage = 'usage: <script> modify [options] <object>\n\n'
+    usage += 'valid objects are:\n'
+    for modify in valid_modify_set():
+        usage += '  %s\n' % modify
+    return usage
+
+def register_modify_options(parser):
+    parser.add_option(
+            '--sinfo_in',
+            action='store',
+            type='string',
+            dest='sinfo_in',
+            default='sinfo.db',
+            metavar='PATH',
+            help='the input static info database path')
+    parser.add_option(
+            '--sinfo_out',
+            action='store',
+            type='string',
+            dest='sinfo_out',
+            default='sinfo.db',
+            metavar='PATH',
+            help='the output static info database path')
+    parser.add_option(
+            '--iroot_in',
+            action='store',
+            type='string',
+            dest='iroot_in',
+            default='iroot.db',
+            metavar='PATH',
+            help='the input iroot database path')
+    parser.add_option(
+            '--iroot_out',
+            action='store',
+            type='string',
+            dest='iroot_out',
+            default='iroot.db',
+            metavar='PATH',
+            help='the output iroot database path')
+    parser.add_option(
+            '--memo_in',
+            action='store',
+            type='string',
+            dest='memo_in',
+            default='memo.db',
+            metavar='PATH',
+            help='the input memoization database path')
+    parser.add_option(
+            '--memo_out',
+            action='store',
+            type='string',
+            dest='memo_out',
+            default='memo.db',
+            metavar='PATH',
+            help='the output memoization database path')
+    parser.add_option(
+            '--no_memo_failed',
+            action='store_false',
+            dest='memo_failed',
+            default=True,
+            help='whether memorize fail-to-expose iroots')
+
+def __command_modify(argv):
+    parser = optparse.OptionParser(modify_usage())
+    register_modify_options(parser)
+    (options, args) = parser.parse_args(argv)
+    if len(args) != 1 or not valid_modify(args[0]):
+        parser.print_help()
+        sys.exit(0)
+    eval('__modify_%s(options)' % args[0])
 
 def register_profile_cmdline_options(parser, prefix=''):
     parser.add_option(
@@ -493,12 +635,12 @@ def register_race_cmdline_options(parser, prefix=''):
 def __command_chess_race(argv):
     pin = pintool.Pin(config.pin_home())
     profiler = race_pintool.PctProfiler()
-    profiler.option_prefix = 'race_'
+    profiler.knob_prefix = 'race_'
     profiler.knob_defaults['enable_djit'] = True
     profiler.knob_defaults['ignore_lib'] = True
     profiler.knob_defaults['track_racy_inst'] = True
     controller = idiom_pintool.ChessProfiler()
-    controller.option_prefix = 'chess_'
+    controller.knob_prefix = 'chess_'
     controller.knob_defaults['enable_chess_scheduler'] = True
     controller.knob_defaults['enable_observer_new'] = True
     controller.knob_defaults['sched_race'] = True
@@ -540,11 +682,11 @@ def __command_chess_race(argv):
 def __command_default(argv):
     pin = pintool.Pin(config.pin_home())
     profiler = idiom_pintool.PctProfiler()
-    profiler.option_prefix = 'profile_'
+    profiler.knob_prefix = 'profile_'
     profiler.knob_defaults['enable_observer_new'] = True
     profiler.knob_defaults['enable_predictor_new'] = True
     scheduler = idiom_pintool.Scheduler()
-    scheduler.option_prefix = 'active_'
+    scheduler.knob_prefix = 'active_'
     # parse cmdline options
     usage = 'usage: <script> default [options] --- program'
     parser = optparse.OptionParser(usage)
@@ -587,7 +729,7 @@ def valid_benchmark_set():
     for f in os.listdir(path):
         if f.endswith('.py'):
             if f != '__init__.py':
-                result.add(f.rstrip('.py'))
+                result.add(f[:-3])
     return result
 
 def valid_benchmark(bench):
@@ -870,12 +1012,12 @@ def __command_chess_script(argv):
 def __command_chess_race_script(argv):
     pin = pintool.Pin(config.pin_home())
     profiler = race_pintool.PctProfiler()
-    profiler.option_prefix = 'race_'
+    profiler.knob_prefix = 'race_'
     profiler.knob_defaults['enable_djit'] = True
     profiler.knob_defaults['ignore_lib'] = True
     profiler.knob_defaults['track_racy_inst'] = True
     controller = idiom_pintool.ChessProfiler()
-    controller.option_prefix = 'chess_'
+    controller.knob_prefix = 'chess_'
     controller.knob_defaults['enable_chess_scheduler'] = True
     controller.knob_defaults['enable_observer_new'] = True
     controller.knob_defaults['sched_race'] = True
@@ -928,11 +1070,11 @@ def __command_chess_race_script(argv):
 def __command_default_script(argv):
     pin = pintool.Pin(config.pin_home())
     profiler = idiom_pintool.PctProfiler()
-    profiler.option_prefix = 'profile_'
+    profiler.knob_prefix = 'profile_'
     profiler.knob_defaults['enable_observer_new'] = True
     profiler.knob_defaults['enable_predictor_new'] = True
     scheduler = idiom_pintool.Scheduler()
-    scheduler.option_prefix = 'active_'
+    scheduler.knob_prefix = 'active_'
     # parse cmdline options
     usage = 'usage: <script> default_script [options] --- <bench name> <input index>\n\n'
     usage += benchmark_usage()

@@ -17,7 +17,6 @@ Authors - Jie Yu (jieyu@umich.edu)
 
 import os
 import time
-import getpass
 import signal
 import subprocess
 import threading
@@ -118,7 +117,7 @@ class Test(testing.ServerTest):
             start_cmd.extend(self.prefix)
         start_cmd.append(self.server_bin())
         start_cmd.extend(['-t', str(num_threads)])
-        if getpass.getuser() == 'root':
+        if os.getuid() == 0:
             start_cmd.extend(['-u', 'root'])
         logging.msg('[memcached] starting memcached server...\n')
         self.server = subprocess.Popen(start_cmd)

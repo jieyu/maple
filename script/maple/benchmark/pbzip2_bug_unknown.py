@@ -24,15 +24,11 @@ _sio = [None, os.devnull, 'stderr']
 class Test(testing.CmdlineTest):
     def __init__(self, input_idx):
         testing.CmdlineTest.__init__(self, input_idx)
-        #self.add_input(([self.bin(), '-n1', 'http://apache.cyberuse.com/httpd/httpd-2.2.21.tar.gz', '-l', 'aget.file'], _sio))
-        self.add_input(([self.bin(), '-n1', 'http://zodiac.eecs.umich.edu/httpd-2.2.21.tar.gz', '-l', 'aget.file'], _sio))
+        self.add_input(([self.bin(), '-p2', '-b1', '-f', '-k', '-c', '%s/%s' % (self.input_dir(), 'testfile')], _sio))
     def bin(self):
-        return config.benchmark_home('aget_bug1') + '/aget'
-    def setup(self):
-        assert not os.path.exists('aget.file')
-    def tear_down(self):
-        assert os.path.exists('aget.file')
-        os.remove('aget.file')
+        return config.benchmark_home('pbzip2_bug_unknown') + '/pbzip2'
+    def input_dir(self):
+        return config.benchmark_home('pbzip2_bug_unknown') + '/inputs'
 
 def get_test(input_idx='default'):
     return Test(input_idx)

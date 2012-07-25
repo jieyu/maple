@@ -95,19 +95,19 @@ class ProfileTestCase(testing.DeathTestCase):
     def __init__(self, test, mode, threshold, profiler):
         testing.DeathTestCase.__init__(self, test, mode, threshold)
         self.profiler = profiler
-        self.memo_size = 0
+        self.predicted_size = 0
         self.stable_cnt = 0
     def threshold_check(self):
         if testing.DeathTestCase.threshold_check(self):
             return True
         if self.mode == 'stable':
-            if self.memo_db.size() != self.memo_size:
+            if self.memo_db.predicted_size() != self.predicted_size:
                 self.stable_cnt = 0
             else:
                 self.stable_cnt += 1
                 if self.stable_cnt >= int(self.threshold):
                     return True
-            self.memo_size = self.memo_db.size()
+            self.predicted_size = self.memo_db.predicted_size()
         return False
     def after_each_test(self):
         iteration = len(self.test_history)
@@ -145,7 +145,8 @@ class ActiveTestCase(testing.DeathTestCase):
             return True
         return False
     def has_candidate(self):
-        return self.memo_db.has_candidate()
+        idiom = self.scheduler.knobs['target_idiom']
+        return self.memo_db.has_candidate(idiom)
     def after_each_test(self):
         iteration = len(self.test_history)
         used_time = self.test_history[-1].used_time()

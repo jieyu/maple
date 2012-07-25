@@ -21,6 +21,9 @@ from maple.systematic import program
 from maple.systematic import search
 from maple.regression import common
 
+def disabled():
+    return True
+
 def source_name():
     return __name__ + common.cxx_ext()
 
@@ -43,5 +46,5 @@ def verify(controller, testcase):
     search_info.load(controller.knobs['search_out'])
     if search_info.num_runs() != 5:
         return False
-    return False
+    return True
 

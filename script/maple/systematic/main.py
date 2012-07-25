@@ -243,12 +243,12 @@ def register_race_cmdline_options(parser, prefix=''):
 def __command_chess_race(argv):
     pin = pintool.Pin(config.pin_home())
     profiler = race_pintool.PctProfiler()
-    profiler.option_prefix = 'race_'
+    profiler.knob_prefix = 'race_'
     profiler.knob_defaults['enable_djit'] = True
     profiler.knob_defaults['ignore_lib'] = True
     profiler.knob_defaults['track_racy_inst'] = True
     controller = systematic_pintool.Controller()
-    controller.option_prefix = 'chess_'
+    controller.knob_prefix = 'chess_'
     controller.knob_defaults['enable_chess_scheduler'] = True
     controller.knob_defaults['sched_race'] = True
     # parse cmdline options

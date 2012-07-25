@@ -15,20 +15,12 @@ limitations under the License.
 Authors - Jie Yu (jieyu@umich.edu)
 """
 
-class Analyzer(object):
+from maple.core import knob
+
+class Analyzer(knob.KnobUser):
     def __init__(self, name):
+        knob.KnobUser.__init__(self)
         self.name = name
-        self.knob_types = {}
-        self.knob_defaults = {}
-        self.knob_helps = {}
-        self.knob_metavars = {}
-        self.knobs = {}
-    def register_knob(self, name, type, default, help, metavar=''):
-        self.knob_types[name] = type
-        self.knob_defaults[name] = default
-        self.knob_helps[name] = help
-        self.knob_metavars[name] = metavar
-        self.knobs[name] = default
 
 class DebugAnalyzer(Analyzer):
     def __init__(self):

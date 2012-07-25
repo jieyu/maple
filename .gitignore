@@ -1,0 +1,16 @@
+.*
+!.gitignore
+*.d
+*.o
+*.so
+*.swp
+*.pyc
+*.pb.h
+*.pb.cc
+GPATH
+GRTAGS
+GTAGS
+tmp/
+build-debug/
+build-release/
+script/maple/proto/

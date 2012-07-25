@@ -20,24 +20,36 @@ import time
 import signal
 import subprocess
 import threading
+import psutil
 from maple.core import config
 from maple.core import logging
 from maple.core import testing
 from maple.extra.memcached import memcache
 
+"""
+This should give you a feel for how this module operates::
+
+import memcache
+mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+
+mc.set("some_key", "Some value")
+value = mc.get("some_key")
+
+mc.set("another_key", 3)
+mc.delete("another_key")
+
+mc.set("key", "1")   # note that the key used for incr/decr must be a string.
+mc.incr("key")
+mc.decr("key")
+"""
+
 def __client_0():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
-    for i in range(10):
-        mc.set('key%d' % i, '%d' % i)
-    for i in range(10):
-        val = mc.get('key%d' % i)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
+    mc.incr('test', 10)
 
 def __client_1():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
-    for i in range(10):
-        mc.set('key%d' % i, '%d' % (i * 10))
-    for i in range(10):
-        val = mc.get('key%d' % i)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
+    mc.incr('test', 10)
 
 class Client(threading.Thread):
     def __init__(self, client_idx):
@@ -55,32 +67,46 @@ class Test(testing.ServerTest):
         start_cmd = []
         if self.prefix != None:
             start_cmd.extend(self.prefix)
-        start_cmd.append(self.server_bin())
+        start_cmd.append(self.bin())
+        start_cmd.extend(['-p', '12345'])
         start_cmd.extend(['-t', str(num_threads)])
         if os.getuid() == 0:
             start_cmd.extend(['-u', 'root'])
-        logging.msg('starting memcached server...\n')
-        logging.msg('cmd = %s\n' % str(start_cmd))
+        logging.msg('starting server for memcached_bug_127\n')
         self.server = subprocess.Popen(start_cmd)
-        time.sleep(1)
+        p = psutil.Process(self.server.pid)
+        while p.get_num_threads() < (num_threads + 2):
+            time.sleep(1)
+        while p.get_cpu_percent() > 25.0:
+            time.sleep(1)
     def stop(self):
-        time.sleep(1)
-        logging.msg('stopping memcached server...\n')
+        p = psutil.Process(self.server.pid)
+        while p.get_cpu_percent() > 25.0:
+            time.sleep(1)
+        logging.msg('stopping server for memcached_bug_127\n')
         os.kill(self.server.pid, signal.SIGINT)
+        self.server.wait()
     def kill(self):
-        logging.msg('killing memcached server...\n')
-        os.kill(self.server.pid, signal.SIGKILL)
+        self.stop()
     def issue(self):
         clients = []
         num_threads, client_indexes = self.input()
         for i in range(len(client_indexes)):
             clients.append(Client(client_indexes[i]))
+        logging.msg('issuing requests for memcached_bug_127\n')
+        self.mc = memcache.Client(['127.0.0.1:12345'], debug=0)
+        self.mc.set('test', '0')
         for i in range(len(clients)):
             clients[i].start()
         for i in range(len(clients)):
             clients[i].join()
-    def server_bin(self):
-        return config.benchmark_home('memcached') + '/bin/memcached'
+    def check_online(self):
+        value = self.mc.get('test')
+        if value != None and int(value) != 20:
+            return (False, False, True)
+        return (False, False, False)
+    def bin(self):
+        return config.benchmark_home('memcached_bug_127') + '/bin/memcached'
 
 def get_test(input_idx='default'):
     return Test(input_idx)

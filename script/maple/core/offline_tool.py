@@ -16,65 +16,42 @@ Authors - Jie Yu (jieyu@umich.edu)
 """
 
 import os
-from maple.core import analyzer
+import subprocess
 from maple.core import knob
 
-class Pin(object):
-    """ The wrapper class for PIN binary instrumentation tool
-    """
-    def __init__(self, home_path):
-        self.home_path = home_path
-        self.logging_mode = False
-        self.debugging_mode = False
-        self.knobs = {}
-    def pin(self):
-        return self.home_path + '/pin'
-    def options(self):
-        c = []
-        if self.logging_mode:
-            c.append('-xyzzy')
-            c.append('-mesgon')
-            c.append('log_signal')
-            c.append('-mesgon')
-            c.append('log_syscall')
-        if self.debugging_mode:
-            c.append('-pause_tool')
-            c.append('10')
-        for k, v in self.knobs.iteritems():
-            c.append('-' + k)
-            c.append(str(v))
-        return c
-
-class Pintool(knob.KnobUser):
-    """ The abstract class for PIN tools.
+class OfflineTool(knob.KnobUser):
+    """ The abstract class for offline tools.
     """
     def __init__(self, name):
         knob.KnobUser.__init__(self)
         self.name = name
         self.debug = False
-        self.analyzers = {}
-        self.add_analyzer(analyzer.DebugAnalyzer())
-    def so_path(self):
+    def bin_path(self):
         pass
-    def options(self):
+    def cmd(self):
         c = []
-        c.append('-t')
-        c.append(self.so_path())
+        c.append(self.bin_path())
         for k, v in self.knobs.iteritems():
-            c.append('-' + k)
+            a = '--' + k + '='
             if self.knob_types[k] == 'bool':
                 if v:
-                    c.append('1')
+                    a += '1'
                 else:
-                    c.append('0')
+                    a += '0'
             elif self.knob_types[k] == 'string':
                 if self.knob_metavars[k] == 'PATH':
-                    c.append(os.path.realpath(v))
+                    a += os.path.realpath(v)
                 else:
-                    c.append(v)
+                    a += v
             else:
-                c.append(str(v))
+                a += str(v)
+            c.append(a)
         return c
+    def call(self):
+        subprocess.call(self.cmd())
+    def run(self):
+        proc = subprocess.Popen(self.cmd(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return proc.communicate()
     def register_cmdline_options(self, parser):
         knob.KnobUser.register_cmdline_options(self, parser)
         parser.add_option(
@@ -86,7 +63,4 @@ class Pintool(knob.KnobUser):
     def set_cmdline_options(self, options, args):
         knob.KnobUser.set_cmdline_options(self, options, args)
         self.debug = eval('options.%sdebug' % self.knob_prefix)
-    def add_analyzer(self, a):
-        self.analyzers[a.name] = a
-        self.merge_knob(a)
 

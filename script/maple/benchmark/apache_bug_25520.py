@@ -18,17 +18,15 @@ Authors - Jie Yu (jieyu@umich.edu)
 import os
 import time
 import subprocess
-import threading
 import psutil
 from maple.core import config
 from maple.core import logging
 from maple.core import testing
 
-class Client(threading.Thread):
+class Client(object):
     def __init__(self, input_entry):
-        threading.Thread.__init__(self)
         self.input_entry = input_entry
-    def run(self):
+    def start(self):
         uri_idx, num_calls = self.input_entry
         httperf_args = []
         httperf_args.append(config.benchmark_home('httperf') + '/bin/httperf')
@@ -38,9 +36,13 @@ class Client(threading.Thread):
         httperf_args.append('--num-calls=%d' % num_calls)
         httperf_args.append('--num-conns=1')
         logging.msg('client: uri_idx=%d, num_calls=%d\n' % (uri_idx, num_calls))
-        fnull = open(os.devnull, 'w')
-        subprocess.call(httperf_args, stdout=fnull, stderr=fnull)
-        fnull.close()
+        self.fnull = open(os.devnull, 'w')
+        self.proc = subprocess.Popen(httperf_args, stdout=self.fnull, stderr=self.fnull)
+    def join(self):
+        self.proc.wait()
+        self.fnull.close()
+        self.proc = None
+        self.fnull = None
         logging.msg('client done\n')
 
 class Test(testing.ServerTest):

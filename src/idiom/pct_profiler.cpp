@@ -139,7 +139,7 @@ bool PCTProfiler::HandleIgnoreMemAccess(IMG img) {
 void PCTProfiler::HandleProgramExit() {
   pct::Scheduler::HandleProgramExit();
 
-  memo_->RefineCandidate(knob_->ValueBool("memo_failed"), false);
+  memo_->RefineCandidate(knob_->ValueBool("memo_failed"));
 
   // save iroot db
   iroot_db_->Save(knob_->ValueStr("iroot_out"), sinfo_);

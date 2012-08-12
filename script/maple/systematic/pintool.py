@@ -24,7 +24,7 @@ class Controller(pintool.Pintool):
     def __init__(self):
         pintool.Pintool.__init__(self, 'chess_controller')
         self.schedulers = {}
-        self.register_knob('debug_out', 'string', 'stdout', 'the output file for the debug messages', 'PATH') 
+        self.register_knob('debug_out', 'string', 'stdout', 'the output file for the debug messages')
         self.register_knob('stat_out', 'string', 'stat.out', 'the statistics output file', 'PATH')
         self.register_knob('sinfo_in', 'string', 'sinfo.db', 'the input static info database path', 'PATH')
         self.register_knob('sinfo_out', 'string', 'sinfo.db', 'the output static info database path', 'PATH')

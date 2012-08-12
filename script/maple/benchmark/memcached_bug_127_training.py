@@ -103,6 +103,7 @@ class Test(testing.ServerTest):
         logging.msg('stopping server for memcached_bug_127_training\n')
         os.kill(self.server.pid, signal.SIGINT)
         self.server.wait()
+        self.server = None
     def kill(self):
         self.stop()
     def issue(self):

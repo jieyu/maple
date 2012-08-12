@@ -113,7 +113,7 @@ void Scheduler::HandleProgramExit() {
   SchedulerCommon::HandleProgramExit();
 
   // save memoization
-  memo_->RefineCandidate(knob_->ValueBool("memo_failed"), false);
+  memo_->RefineCandidate(knob_->ValueBool("memo_failed"));
   memo_->Save(knob_->ValueStr("memo_out"), sinfo_);
   // save shared instruction db
   sinst_db_->Save(knob_->ValueStr("sinst_out"), sinfo_);

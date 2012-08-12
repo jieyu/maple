@@ -15,8 +15,6 @@ limitations under the License.
 Authors - Jie Yu (jieyu@umich.edu)
 """
 
-import os
-
 # The abstract base class for those use knobs.
 class KnobUser(object):
     def __init__(self):
@@ -28,10 +26,7 @@ class KnobUser(object):
         self.knobs = {}
     def register_knob(self, name, type, default, help, metavar=''):
         self.knob_types[name] = type
-        if metavar == 'PATH':
-            self.knob_defaults[name] = os.path.join(os.getcwd(), default)
-        else:
-            self.knob_defaults[name] = default
+        self.knob_defaults[name] = default
         self.knob_helps[name] = help
         self.knob_metavars[name] = metavar
         self.knobs[name] = self.knob_defaults[name]

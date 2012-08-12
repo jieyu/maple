@@ -50,6 +50,9 @@ Expected Results (predicted iroots):
 (We should predicted two idiom5 iroots which will lead to deadlock.)
 """
 
+def disabled():
+    return True
+
 def source_name():
     return __name__ + common.cxx_ext()
 

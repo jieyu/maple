@@ -37,6 +37,7 @@ class iRootInfo {
   iRoot *iroot() { return iroot_; }
   int total_test_runs() { return proto_->total_test_runs(); }
   bool async() { return (proto_->has_async() ? proto_->async() : false); }
+  bool has_async() { return proto_->has_async(); }
   void set_total_test_runs(int n) { proto_->set_total_test_runs(n); }
   void set_async(bool async) { proto_->set_async(async); }
 
@@ -72,10 +73,15 @@ class Memo {
   void TestFail(iRoot *iroot, bool locking);
   void Predicted(iRoot *iroot, bool locking);
   void Observed(iRoot *iroot, bool shadow, bool locking);
-  void RefineCandidate(bool memo_failed, bool locking);
   int TotalTestRuns(iRoot *iroot, bool locking);
   bool Async(iRoot *iroot, bool locking);
   void SetAsync(iRoot *iroot, bool locking);
+  size_t TotalCandidate(bool locking);
+  size_t TotalExposed(IdiomType idiom, bool shadow, bool locking);
+  size_t TotalPredicted(bool locking);
+  void Merge(Memo *other);
+  void RefineCandidate(bool memo_failed);
+  void SampleCandidate(IdiomType idiom, size_t num);
   void Load(const std::string &db_name, StaticInfo *sinfo);
   void Save(const std::string &db_name, StaticInfo *sinfo);
 

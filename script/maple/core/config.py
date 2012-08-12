@@ -60,9 +60,10 @@ def benchmark_home(name):
     if host_name() == 'eden':
         bench_home['memcached'] = '/opt/benchmark/memcached/memcached-1.4.4'
     if host_name() == 'd-106-219':
-        bench_home['pbzip2_bug_unknown'] = '/opt/project/eden-software/apps/pbzip2-0.9.5'
         bench_home['httperf'] = '/opt/httperf/httperf-0.9.0'
         bench_home['apache'] = '/opt/project/eden-software/bugs/apache/httpd-2.0.48'
+        bench_home['mysql'] = '/opt/bug/mysql-bug-791/mysql-4.0.12'
+        bench_home['pbzip2_bug_unknown'] = '/opt/project/eden-software/apps/pbzip2-0.9.5'
         bench_home['mysql_bug_791'] = '/opt/bug/mysql-bug-791/mysql-4.0.12'
     if host_name() == 'bowser':
         bench_home['splash2'] = '/x/jieyu/benchmark/splash2'
@@ -71,6 +72,7 @@ def benchmark_home(name):
         bench_home['pfscan'] = '/x/jieyu/benchmark/pfscan/pfscan-1.0'
         bench_home['pbzip2'] = '/x/jieyu/benchmark/pbzip2/pbzip2-0.9.5'
         bench_home['memcached'] = '/x/jieyu/benchmark/memcached/memcached-1.4.4'
+        bench_home['apache'] = '/x/jieyu/bug/apache-bug-25520/httpd-2.0.48'
         bench_home['httperf'] = '/x/jieyu/tool/httperf/httperf-0.9.0'
         bench_home['pbzip2_bug'] = '/x/jieyu/bug/pbzip2-bug/pbzip2-0.9.4'
         bench_home['apache_bug_25520'] = '/x/jieyu/bug/apache-bug-25520/httpd-2.0.48'

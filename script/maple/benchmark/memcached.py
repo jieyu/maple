@@ -50,44 +50,44 @@ def wait_for_idle(pid):
         time.sleep(1)
 
 def __client_0():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     for i in range(10):
         mc.set('key%d' % i, '%d' % i)
     for i in range(10):
         val = mc.get('key%d' % i)
 
 def __client_1():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     for i in range(10):
         mc.set('key%d' % i, '%d' % (i * 10))
     for i in range(10):
         val = mc.get('key%d' % i)
 
 def __client_2():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     mc.set('key', '1')
     for i in range(10):
         val = mc.get('key')
 
 def __client_3():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     mc.set('key', '5')
     for i in range(10):
         val = mc.get('key')
 
 def __client_4():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     for i in range(10):
         val = mc.set('key', '%d' % i)
 
 def __client_5():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     mc.set('key', '50')
     for i in range(10):
         mc.incr('key')
 
 def __client_6():
-    mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+    mc = memcache.Client(['127.0.0.1:12345'], debug=0)
     mc.set('key', '50')
     for i in range(10):
         mc.decr('key')
@@ -115,22 +115,26 @@ class Test(testing.ServerTest):
         start_cmd = []
         if self.prefix != None:
             start_cmd.extend(self.prefix)
-        start_cmd.append(self.server_bin())
+        start_cmd.append(self.bin())
+        start_cmd.extend(['-p', '12345'])
         start_cmd.extend(['-t', str(num_threads)])
         if os.getuid() == 0:
             start_cmd.extend(['-u', 'root'])
-        logging.msg('[memcached] starting memcached server...\n')
+        logging.msg('starting server for memcached\n')
         self.server = subprocess.Popen(start_cmd)
         p = psutil.Process(self.server.pid)
         while p.get_num_threads() < (num_threads + 2):
             time.sleep(1)
+        while p.get_cpu_percent() > 25.0:
+            time.sleep(1)
     def stop(self):
         p = psutil.Process(self.server.pid)
-        while p.get_cpu_percent() > 5.0:
+        while p.get_cpu_percent() > 25.0:
             time.sleep(1)
-        logging.msg('[memcached] stopping memcached server...\n')
+        logging.msg('stopping server for memcached\n')
         os.kill(self.server.pid, signal.SIGINT)
         self.server.wait()
+        self.server = None
     def kill(self):
         self.stop()
     def issue(self):
@@ -138,12 +142,12 @@ class Test(testing.ServerTest):
         num_threads, client_indexes = self.input()
         for i in range(len(client_indexes)):
             clients.append(Client(client_indexes[i]))
-        logging.msg('[memcached] issuing requests...\n')
+        logging.msg('issuing requests for memcached\n')
         for i in range(len(clients)):
             clients[i].start()
         for i in range(len(clients)):
             clients[i].join()
-    def server_bin(self):
+    def bin(self):
         return config.benchmark_home('memcached') + '/bin/memcached'
 
 def get_test(input_idx='default'):

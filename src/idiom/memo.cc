@@ -18,6 +18,8 @@
 
 #include "idiom/memo.h"
 
+#include <cassert>
+#include <algorithm>
 #include "core/logging.h"
 
 namespace idiom {
@@ -166,9 +168,150 @@ void Memo::Observed(iRoot *iroot, bool shadow, bool locking) {
     exposed_set_.insert(iroot_info);
 }
 
-void Memo::RefineCandidate(bool memo_failed, bool locking) {
+int Memo::TotalTestRuns(iRoot *iroot, bool locking) {
+  ScopedLock locker(internal_lock_, locking);
+  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
+  DEBUG_ASSERT(iroot_info);
+  return iroot_info->total_test_runs();
+}
+
+bool Memo::Async(iRoot *iroot, bool locking) {
   ScopedLock locker(internal_lock_, locking);
 
+  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
+  DEBUG_ASSERT(iroot_info);
+  return iroot_info->async();
+}
+
+void Memo::SetAsync(iRoot *iroot, bool locking) {
+  ScopedLock locker(internal_lock_, locking);
+
+  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
+  DEBUG_ASSERT(iroot_info);
+  iroot_info->set_async(true);
+}
+
+size_t Memo::TotalCandidate(bool locking) {
+  ScopedLock locker(internal_lock_, locking);
+
+  return candidate_map_.size();
+}
+
+size_t Memo::TotalExposed(IdiomType idiom, bool shadow, bool locking) {
+  ScopedLock locker(internal_lock_, locking);
+
+  iRootInfoSet result;
+  for (iRootInfoSet::iterator it = exposed_set_.begin();
+       it != exposed_set_.end(); ++it) {
+    if ((*it)->iroot()->idiom() == idiom) {
+      result.insert(*it);
+    }
+  }
+
+  if (shadow) {
+    for (iRootInfoSet::iterator it = shadow_exposed_set_.begin();
+         it != shadow_exposed_set_.end(); ++it) {
+      if ((*it)->iroot()->idiom() == idiom) {
+        result.insert(*it);
+      }
+    }
+  }
+
+  return result.size();
+}
+
+size_t Memo::TotalPredicted(bool locking) {
+  ScopedLock locker(internal_lock_, locking);
+
+  return predicted_set_.size();
+}
+
+void Memo::Merge(Memo *other) {
+  // Merge iroot_info_map_.
+  for (iRootInfoMap::iterator it = other->iroot_info_map_.begin();
+       it != other->iroot_info_map_.end(); ++it) {
+    iRoot *other_iroot = it->first;
+    iRootInfo *other_iroot_info = it->second;
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    if (fit == iroot_info_map_.end()) {
+      iRootInfo *iroot_info = GetiRootInfo(other_iroot, false);
+      iroot_info->set_total_test_runs(other_iroot_info->total_test_runs());
+      if (other_iroot_info->has_async()) {
+        iroot_info->set_async(other_iroot_info->async());
+      }
+      iroot_info_map_[other_iroot] = iroot_info;
+    } else {
+      iRootInfo *iroot_info = fit->second;
+      if (other_iroot_info->total_test_runs() > iroot_info->total_test_runs()) {
+        iroot_info->set_total_test_runs(other_iroot_info->total_test_runs());
+      }
+      if (other_iroot_info->has_async() && other_iroot_info->async()) {
+        iroot_info->set_async(true);
+      }
+    }
+  }
+
+  // Merge exposed_set_.
+  for (iRootInfoSet::iterator it = other->exposed_set_.begin();
+       it != other->exposed_set_.end(); ++it) {
+    iRootInfo *other_iroot_info = *it;
+    iRoot *other_iroot = other_iroot_info->iroot();
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    assert(fit != iroot_info_map_.end());
+    exposed_set_.insert(fit->second);
+  }
+
+  // Merge failed_set_.
+  for (iRootInfoSet::iterator it = other->failed_set_.begin();
+       it != other->failed_set_.end(); ++it) {
+    iRootInfo *other_iroot_info = *it;
+    iRoot *other_iroot = other_iroot_info->iroot();
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    assert(fit != iroot_info_map_.end());
+    failed_set_.insert(fit->second);
+  }
+
+  // Merge predicted_set_.
+  for (iRootInfoSet::iterator it = other->predicted_set_.begin();
+       it != other->predicted_set_.end(); ++it) {
+    iRootInfo *other_iroot_info = *it;
+    iRoot *other_iroot = other_iroot_info->iroot();
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    assert(fit != iroot_info_map_.end());
+    predicted_set_.insert(fit->second);
+  }
+
+  // Merge shadow_exposed_set_.
+  for (iRootInfoSet::iterator it = other->shadow_exposed_set_.begin();
+       it != other->shadow_exposed_set_.end(); ++it) {
+    iRootInfo *other_iroot_info = *it;
+    iRoot *other_iroot = other_iroot_info->iroot();
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    assert(fit != iroot_info_map_.end());
+    shadow_exposed_set_.insert(fit->second);
+  }
+
+  // Merge candidate_map_.
+  for (CandidateMap::iterator it = other->candidate_map_.begin();
+       it != other->candidate_map_.end(); ++it) {
+    iRootInfo *other_iroot_info = it->first;
+    iRoot *other_iroot = other_iroot_info->iroot();
+    int other_test_runs = it->second;
+    iRootInfoMap::iterator fit = iroot_info_map_.find(other_iroot);
+    assert(fit != iroot_info_map_.end());
+    iRootInfo *iroot_info = fit->second;
+    CandidateMap::iterator cit = candidate_map_.find(iroot_info);
+    if (cit == candidate_map_.end()) {
+      candidate_map_[iroot_info] = other_test_runs;
+    } else {
+      if (other_test_runs > cit->second) {
+        cit->second = other_test_runs;
+      }
+    }
+  }
+}
+
+void Memo::RefineCandidate(bool memo_failed) {
   iRootInfoSet to_remove;
 
   // remove those candidates that reach failed limit
@@ -198,27 +341,27 @@ void Memo::RefineCandidate(bool memo_failed, bool locking) {
   }
 }
 
-int Memo::TotalTestRuns(iRoot *iroot, bool locking) {
-  ScopedLock locker(internal_lock_, locking);
-  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
-  DEBUG_ASSERT(iroot_info);
-  return iroot_info->total_test_runs();
-}
+void Memo::SampleCandidate(IdiomType idiom, size_t num) {
+  // Find all the iroot info that match the given idiom.
+  std::vector<iRootInfo *> iroot_info_vec;
+  for (CandidateMap::iterator it = candidate_map_.begin();
+       it != candidate_map_.end(); it++) {
+    iRootInfo *iroot_info = it->first;
+    if (iroot_info->iroot()->idiom() == idiom) {
+      iroot_info_vec.push_back(iroot_info);
+    }
+  }
 
-bool Memo::Async(iRoot *iroot, bool locking) {
-  ScopedLock locker(internal_lock_, locking);
+  // Randomly shuffle.
+  random_shuffle(iroot_info_vec.begin(), iroot_info_vec.end());
 
-  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
-  DEBUG_ASSERT(iroot_info);
-  return iroot_info->async();
-}
-
-void Memo::SetAsync(iRoot *iroot, bool locking) {
-  ScopedLock locker(internal_lock_, locking);
-
-  iRootInfo *iroot_info = GetiRootInfo(iroot, false);
-  DEBUG_ASSERT(iroot_info);
-  iroot_info->set_async(true);
+  // Sample!
+  if (num < iroot_info_vec.size()) {
+    size_t remove_size = iroot_info_vec.size() - num;
+    for (size_t i = 0; i < remove_size; i++) {
+      candidate_map_.erase(iroot_info_vec[i]);
+    }
+  }
 }
 
 void Memo::Load(const std::string &db_name, StaticInfo *sinfo) {

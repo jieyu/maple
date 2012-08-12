@@ -21,24 +21,48 @@ from maple.core import logging
 from maple.core import static_info
 from maple.core import pintool
 from maple.core import testing
-from maple.core import proto
-from maple.idiom import iroot
-from maple.idiom import memo
+from maple.idiom import offline_tool
 from maple.race import testing as race_testing
 from maple.systematic import testing as systematic_testing
 
-def iroot_pb2():
-    return proto.module('idiom.iroot_pb2')
+def has_candidate(tool):
+    memo_tool = offline_tool.MemoTool()
+    memo_tool.knobs['operation'] = 'has_candidate'
+    memo_tool.knobs['arg'] = str(tool.knobs['target_idiom'])
+    memo_tool.knobs['sinfo_in'] = tool.knobs['sinfo_out']
+    memo_tool.knobs['iroot_in'] = tool.knobs['iroot_out']
+    memo_tool.knobs['memo_in'] = tool.knobs['memo_out']
+    stdout, stderr = memo_tool.run()
+    if int(stdout) != 0:
+        return True
+    else:
+        return False
 
-def log_coverage(name, used_time, memo_db):
+def predicted_size(tool):
+    memo_tool = offline_tool.MemoTool()
+    memo_tool.knobs['operation'] = 'total_predicted'
+    memo_tool.knobs['sinfo_in'] = tool.knobs['sinfo_out']
+    memo_tool.knobs['iroot_in'] = tool.knobs['iroot_out']
+    memo_tool.knobs['memo_in'] = tool.knobs['memo_out']
+    stdout, stderr = memo_tool.run()
+    return int(stdout)
+
+def log_coverage(tool, used_time):
+    memo_tool = offline_tool.MemoTool()
+    memo_tool.knobs['operation'] = 'total_exposed'
+    memo_tool.knobs['sinfo_in'] = tool.knobs['sinfo_out']
+    memo_tool.knobs['iroot_in'] = tool.knobs['iroot_out']
+    memo_tool.knobs['memo_in'] = tool.knobs['memo_out']
+    stdout, stderr = memo_tool.run()
+    exposed = stdout.split()
     f = open('coverage', 'a')
-    f.write('%-25s ' % name)
+    f.write('%-25s ' % tool.name)
     f.write('%-10f ' % used_time)
-    f.write('%-6d ' % len(memo_db.observed_iroot_set(iroot_pb2().IDIOM_1)))
-    f.write('%-6d ' % len(memo_db.observed_iroot_set(iroot_pb2().IDIOM_2)))
-    f.write('%-6d ' % len(memo_db.observed_iroot_set(iroot_pb2().IDIOM_3)))
-    f.write('%-6d ' % len(memo_db.observed_iroot_set(iroot_pb2().IDIOM_4)))
-    f.write('%-6d\n' % len(memo_db.observed_iroot_set(iroot_pb2().IDIOM_5)))
+    f.write('%-6d ' % int(exposed[0]))
+    f.write('%-6d ' % int(exposed[1]))
+    f.write('%-6d ' % int(exposed[2]))
+    f.write('%-6d ' % int(exposed[3]))
+    f.write('%-6d\n' % int(exposed[4]))
     f.close()
 
 class NativeTestCase(testing.DeathTestCase):
@@ -70,8 +94,7 @@ class RandomTestCase(testing.DeathTestCase):
         iteration = len(self.test_history)
         used_time = self.test_history[-1].used_time()
         logging.msg('=== random iteration %d done === (%f) (%s)\n' % (iteration, used_time, os.getcwd()))
-        self.load_memo_db()
-        log_coverage(self.profiler.name, used_time, self.memo_db)
+        log_coverage(self.profiler, used_time)
     def after_all_tests(self):
         if self.is_fatal():
             logging.msg('random fatal error detected\n')
@@ -82,14 +105,6 @@ class RandomTestCase(testing.DeathTestCase):
         used_time = self.used_time()
         logging.msg('%-15s %d\n' % ('random_runs', runs))
         logging.msg('%-15s %f\n' % ('random_time', used_time))
-    def load_memo_db(self):
-        sinfo = static_info.StaticInfo()
-        sinfo.load(self.profiler.knobs['sinfo_out'])
-        iroot_db = iroot.iRootDB(sinfo)
-        iroot_db.load(self.profiler.knobs['iroot_out'])
-        memo_db = memo.Memo(sinfo, iroot_db)
-        memo_db.load(self.profiler.knobs['memo_out'])
-        self.memo_db = memo_db
 
 class ProfileTestCase(testing.DeathTestCase):
     def __init__(self, test, mode, threshold, profiler):
@@ -101,20 +116,20 @@ class ProfileTestCase(testing.DeathTestCase):
         if testing.DeathTestCase.threshold_check(self):
             return True
         if self.mode == 'stable':
-            if self.memo_db.predicted_size() != self.predicted_size:
+            size = predicted_size(self.profiler)
+            if size != self.predicted_size:
                 self.stable_cnt = 0
             else:
                 self.stable_cnt += 1
                 if self.stable_cnt >= int(self.threshold):
                     return True
-            self.predicted_size = self.memo_db.predicted_size()
+            self.predicted_size = size
         return False
     def after_each_test(self):
         iteration = len(self.test_history)
         used_time = self.test_history[-1].used_time()
         logging.msg('=== profile iteration %d done === (%f) (%s)\n' % (iteration, used_time, os.getcwd()))
-        self.load_memo_db()
-        log_coverage(self.profiler.name, used_time, self.memo_db)
+        log_coverage(self.profiler, used_time)
     def after_all_tests(self):
         if self.is_fatal():
             logging.msg('profile fatal error detected\n')
@@ -125,34 +140,22 @@ class ProfileTestCase(testing.DeathTestCase):
         used_time = self.used_time()
         logging.msg('%-15s %d\n' % ('profile_runs', runs))
         logging.msg('%-15s %f\n' % ('profile_time', used_time))
-    def load_memo_db(self):
-        sinfo = static_info.StaticInfo()
-        sinfo.load(self.profiler.knobs['sinfo_out'])
-        iroot_db = iroot.iRootDB(sinfo)
-        iroot_db.load(self.profiler.knobs['iroot_out'])
-        memo_db = memo.Memo(sinfo, iroot_db)
-        memo_db.load(self.profiler.knobs['memo_out'])
-        self.memo_db = memo_db
 
 class ActiveTestCase(testing.DeathTestCase):
     def __init__(self, test, mode, threshold, scheduler):
         testing.DeathTestCase.__init__(self, test, mode, threshold)
         self.scheduler = scheduler
     def threshold_check(self):
-        if not self.has_candidate():
+        if not has_candidate(self.scheduler):
             return True
         if testing.DeathTestCase.threshold_check(self):
             return True
         return False
-    def has_candidate(self):
-        idiom = self.scheduler.knobs['target_idiom']
-        return self.memo_db.has_candidate(idiom)
     def after_each_test(self):
         iteration = len(self.test_history)
         used_time = self.test_history[-1].used_time()
         logging.msg('=== active iteration %d done === (%f) (%s)\n' % (iteration, used_time, os.getcwd()))
-        self.load_memo_db()
-        log_coverage(self.scheduler.name, used_time, self.memo_db)
+        log_coverage(self.scheduler, used_time)
     def after_all_tests(self):
         if self.is_fatal():
             logging.msg('active fatal error detected\n')
@@ -163,14 +166,6 @@ class ActiveTestCase(testing.DeathTestCase):
         used_time = self.used_time()
         logging.msg('%-15s %d\n' % ('active_runs', runs))
         logging.msg('%-15s %f\n' % ('active_time', used_time))
-    def load_memo_db(self):
-        sinfo = static_info.StaticInfo()
-        sinfo.load(self.scheduler.knobs['sinfo_out'])
-        iroot_db = iroot.iRootDB(sinfo)
-        iroot_db.load(self.scheduler.knobs['iroot_out'])
-        memo_db = memo.Memo(sinfo, iroot_db)
-        memo_db.load(self.scheduler.knobs['memo_out'])
-        self.memo_db = memo_db
 
 class IdiomTestCase(testing.TestCase):
     """ Represent the default idiom test process, that is, profile
@@ -213,16 +208,7 @@ class ChessTestCase(systematic_testing.ChessTestCase):
     def after_each_test(self):
         systematic_testing.ChessTestCase.after_each_test(self)
         used_time = self.test_history[-1].used_time()
-        self.load_memo_db()
-        log_coverage(self.controller.name, used_time, self.memo_db)
-    def load_memo_db(self):
-        sinfo = static_info.StaticInfo()
-        sinfo.load(self.controller.knobs['sinfo_out'])
-        iroot_db = iroot.iRootDB(sinfo)
-        iroot_db.load(self.controller.knobs['iroot_out'])
-        memo_db = memo.Memo(sinfo, iroot_db)
-        memo_db.load(self.controller.knobs['memo_out'])
-        self.memo_db = memo_db
+        log_coverage(self.controller, used_time)
 
 class ChessRaceTestCase(systematic_testing.ChessRaceTestCase):
     """ Run race detecctor to find all racy instructions first, and

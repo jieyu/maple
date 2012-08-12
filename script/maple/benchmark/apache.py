@@ -18,29 +18,32 @@ Authors - Jie Yu (jieyu@umich.edu)
 import os
 import time
 import subprocess
-import threading
 import psutil
 from maple.core import config
 from maple.core import logging
 from maple.core import testing
 
-class Client(threading.Thread):
+class Client(object):
     def __init__(self, input_entry):
-        threading.Thread.__init__(self)
         self.input_entry = input_entry
-    def run(self):
+    def start(self):
         uri_idx, num_calls = self.input_entry 
         httperf_args = []
         httperf_args.append(config.benchmark_home('httperf') + '/bin/httperf')
         httperf_args.append('--server=localhost')
-        httperf_args.append('--uri=/%d.txt' % uri_idx)
+        httperf_args.append('--port=8080')
+        httperf_args.append('--uri=/test/%d.txt' % uri_idx)
         httperf_args.append('--num-calls=%d' % num_calls)
         httperf_args.append('--num-conns=1')
-        logging.msg('[apache] client: uri_idx=%d, num_calls=%d\n' % (uri_idx, num_calls))
-        fnull = open(os.devnull, 'w')
-        subprocess.call(httperf_args, stdout=fnull, stderr=fnull)
-        fnull.close()
-        logging.msg('[apache] client done\n')
+        logging.msg('client: uri_idx=%d, num_calls=%d\n' % (uri_idx, num_calls))
+        self.fnull = open(os.devnull, 'w')
+        self.proc = subprocess.Popen(httperf_args, stdout=self.fnull, stderr=self.fnull)
+    def join(self):
+        self.proc.wait()
+        self.fnull.close()
+        self.proc = None
+        self.fnull = None
+        logging.msg('client done\n')
 
 class Test(testing.ServerTest):
     def __init__(self, input_idx):
@@ -54,23 +57,21 @@ class Test(testing.ServerTest):
         self.add_input([(3, 40), (3, 20)])
         self.add_input([(1, 20), (5, 20)])
         self.add_input([(9, 40), (9, 30)])
-        self.apache_home = config.benchmark_home('apache')
     def setup(self):
-        pid_file = self.apache_home + '/logs/httpd.pid'
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-        log_file = self.apache_home + '/logs/access_log'
-        f = open(log_file, 'w')
+        if os.path.exists(self.pid_file()):
+            os.remove(self.pid_file())
+        f = open(self.log_file(), 'w')
         f.close()
     def start(self):
         start_cmd = []
         if self.prefix != None:
             start_cmd.extend(self.prefix)
-        start_cmd.append(self.server_bin())
+        start_cmd.append(self.bin())
         start_cmd.extend(['-k', 'start', '-D', 'ONE_PROCESS'])
-        logging.msg('[apache] starting server... \n')
+        logging.msg('starting server for apache\n')
         self.server = subprocess.Popen(start_cmd)
-        self.wait_for_pidfile()
+        while not os.path.exists(self.pid_file()):
+            time.sleep(1)
         p = psutil.Process(self.server.pid)
         while p.get_num_threads() != 4:
             time.sleep(1)
@@ -81,11 +82,12 @@ class Test(testing.ServerTest):
             time.sleep(1)
         time.sleep(1)
         stop_cmd = []
-        stop_cmd.append(self.server_bin())
+        stop_cmd.append(self.bin())
         stop_cmd.extend(['-k', 'stop'])
-        logging.msg('[apache] stopping server... \n')
+        logging.msg('stopping server for apache\n')
         subprocess.call(stop_cmd)
         self.server.wait()
+        self.server = None
     def kill(self):
         self.stop()
     def issue(self):
@@ -93,17 +95,19 @@ class Test(testing.ServerTest):
         ipt = self.input()
         for idx in range(len(ipt)): 
             clients.append(Client(ipt[idx]))
-        logging.msg('[apache] issuing requests... \n')
+        logging.msg('issuing requests for apache\n')
         for i in range(len(clients)):
             clients[i].start()
         for i in range(len(clients)):
             clients[i].join()
-    def server_bin(self):
-        return self.apache_home + '/bin/httpd'
-    def wait_for_pidfile(self):
-        pid_file = self.apache_home + '/logs/httpd.pid'
-        while not os.path.exists(pid_file):
-            time.sleep(1)
+    def home(self):
+        return config.benchmark_home('apache')
+    def bin(self):
+        return self.home() + '/bin/httpd'
+    def pid_file(self):
+        return self.home() + '/logs/httpd.pid'
+    def log_file(self):
+        return self.home() + '/logs/access_log'
 
 def get_test(input_idx='default'):
     return Test(input_idx)

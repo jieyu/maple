@@ -30,6 +30,7 @@ from maple.idiom import iroot
 from maple.idiom import memo
 from maple.idiom import history as idiom_history
 from maple.idiom import pintool as idiom_pintool
+from maple.idiom import offline_tool as idiom_offline_tool
 from maple.idiom import testing as idiom_testing
 
 # global variables
@@ -275,9 +276,44 @@ def __modify_memo_refine_candidate(options):
     iroot_db.load(options.iroot_in)
     memo_db = memo.Memo(sinfo, iroot_db)
     memo_db.load(options.memo_in)
-    memo_db.refine_candidate(options.memo_failed)
+    memo_db.refine_candidate()
     memo_db.save(options.memo_out)
     logging.msg('memo refine candidate done!\n')
+
+def __modify_memo_merge(options):
+    if not os.path.exists(options.memo_in):
+        return
+    if not os.path.exists(options.memo_merge_in):
+        return
+    sinfo = static_info.StaticInfo()
+    sinfo.load(options.sinfo_in)
+    iroot_db = iroot.iRootDB(sinfo)
+    iroot_db.load(options.iroot_in)
+    memo_db = memo.Memo(sinfo, iroot_db)
+    memo_db.load(options.memo_in)
+    memo_merge_db = memo.Memo(sinfo, iroot_db)
+    memo_merge_db.load(options.memo_merge_in)
+    memo_db.merge(memo_merge_db)
+    memo_db.save(options.memo_out)
+    logging.msg('memo merge done!\n')
+
+def __modify_memo_apply(options):
+    if not os.path.exists(options.memo_in):
+        return
+    if not os.path.exists(options.memo_merge_in):
+        return
+    sinfo = static_info.StaticInfo()
+    sinfo.load(options.sinfo_in)
+    iroot_db = iroot.iRootDB(sinfo)
+    iroot_db.load(options.iroot_in)
+    memo_db = memo.Memo(sinfo, iroot_db)
+    memo_db.load(options.memo_in)
+    memo_merge_db = memo.Memo(sinfo, iroot_db)
+    memo_merge_db.load(options.memo_merge_in)
+    memo_db.merge(memo_merge_db)
+    memo_db.refine_candidate()
+    memo_db.save(options.memo_out)
+    logging.msg('memo apply done!\n')
 
 def valid_modify_set():
     result = set()
@@ -346,6 +382,14 @@ def register_modify_options(parser):
             default='memo.db',
             metavar='PATH',
             help='the output memoization database path')
+    parser.add_option(
+            '--memo_merge_in',
+            action='store',
+            type='string',
+            dest='memo_merge_in',
+            default='memo_merge.db',
+            metavar='PATH',
+            help='the to-merge memoization database path')
     parser.add_option(
             '--no_memo_failed',
             action='store_false',
@@ -1121,6 +1165,15 @@ def __command_default_script(argv):
     idiom_testcase = idiom_testing.IdiomTestCase(profile_testcase,
                                                  active_testcase)
     idiom_testcase.run()
+
+def __command_memo_tool(argv):
+    usage = 'usage: <script> memo_tool --operation=OP [options]'
+    parser = optparse.OptionParser(usage)
+    memo_tool = idiom_offline_tool.MemoTool()
+    memo_tool.register_cmdline_options(parser)
+    (options, args) = parser.parse_args(argv)
+    memo_tool.set_cmdline_options(options, args)
+    memo_tool.call()
 
 def valid_command_set():
     result = set()

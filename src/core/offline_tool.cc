@@ -25,7 +25,8 @@ OfflineTool::OfflineTool()
     : kernel_lock_(NULL),
       knob_(NULL),
       debug_file_(NULL),
-      sinfo_(NULL) {
+      sinfo_(NULL),
+      read_only_(false) {
   // empty
 }
 
@@ -42,19 +43,19 @@ void OfflineTool::Initialize() {
 }
 
 void OfflineTool::PreSetup() {
-  knob_->RegisterStr("debug_out", "Debug messages output file.", "stdout");
-  knob_->RegisterStr("sinfo_in", "Static info input file.", "sinfo.out");
-  knob_->RegisterStr("sinfo_out", "Static info output file.", "sinfo.out");
+  knob_->RegisterStr("debug_out", "the output file for the debug messages", "stdout");
+  knob_->RegisterStr("sinfo_in", "the input static info database path", "sinfo.db");
+  knob_->RegisterStr("sinfo_out", "the output static info database path", "sinfo.db");
 
   HandlePreSetup();
 }
 
 void OfflineTool::PostSetup() {
   // setup debug output
-  if (knob_->ValueStr("debug_out").compare("stderr") == 0) {
+  if (knob_->ValueStr("debug_out") == "stderr") {
     debug_log->ResetLogFile();
     debug_log->RegisterLogFile(stderr_log_file);
-  } else if (knob_->ValueStr("debug_out").compare("stdout") == 0) {
+  } else if (knob_->ValueStr("debug_out") == "stdout") {
     debug_log->ResetLogFile();
     debug_log->RegisterLogFile(stdout_log_file);
   } else {
@@ -82,8 +83,10 @@ void OfflineTool::Start() {
 void OfflineTool::Exit() {
   HandleExit();
 
-  // save static info
-  sinfo_->Save(knob_->ValueStr("sinfo_out"));
+  if (!read_only_) {
+    // Save static info.
+    sinfo_->Save(knob_->ValueStr("sinfo_out"));
+  }
 
   // close debug file if exists
   if (debug_file_)

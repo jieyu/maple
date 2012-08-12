@@ -14,6 +14,8 @@ srcs += \
   idiom/iroot.pb.cc \
   idiom/memo.cc \
   idiom/memo.pb.cc \
+  idiom/memo_tool.cc \
+  idiom/memo_tool_main.cc \
   idiom/observer.cc \
   idiom/observer_new.cc \
   idiom/pct_profiler.cpp \
@@ -34,6 +36,9 @@ pintools += \
   idiom_profiler.so \
   idiom_randsched_profiler.so \
   idiom_scheduler.so
+
+cmdtools += \
+  idiom_memo_tool
 
 iroot_objs += \
   idiom/history.o \
@@ -114,4 +119,13 @@ idiom_chess_profiler_objs := \
   $(race_objs) \
   $(systematic_objs) \
   $(core_objs)
+
+idiom_memo_tool_objs := \
+  idiom/iroot.o \
+  idiom/iroot.pb.o \
+  idiom/memo.o \
+  idiom/memo.pb.o \
+  idiom/memo_tool.o \
+  idiom/memo_tool_main.o \
+  $(core_cmd_objs)
 

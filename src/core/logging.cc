@@ -76,14 +76,15 @@ LogFile *stderr_log_file = NULL;
 // standard logs
 LogType *assertion_log = NULL;
 LogType *debug_log = NULL;
+LogType *info_log = NULL;
 
-// global debug lock
-Mutex *g_debug_lock = NULL;
+// global print lock
+Mutex *g_print_lock = NULL;
 
 // global functions
 void logging_init(Mutex *lock) {
-  // set debug lock
-  g_debug_lock = lock;
+  // set print lock
+  g_print_lock = lock;
 
   // create default log files
   stdout_log_file = new StdLogFile("stdout");
@@ -94,15 +95,18 @@ void logging_init(Mutex *lock) {
   // create default log types
   assertion_log = new LogType(true, true, false, "[ASSERT] ");
   debug_log = new LogType(true, false, false, "[DEBUG] ");
+  info_log = new LogType(true, false, false, "[INFO] ");
 
   // register default log files for default log types
   assertion_log->RegisterLogFile(stderr_log_file);
   debug_log->RegisterLogFile(stderr_log_file);
+  info_log->RegisterLogFile(stderr_log_file);
 }
 
 void logging_fini() {
   assertion_log->Disable();
   debug_log->Disable();
+  info_log->Disable();
 
   stdout_log_file->Close();
   stderr_log_file->Close();

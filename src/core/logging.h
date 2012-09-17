@@ -114,7 +114,8 @@ extern LogFile *stdout_log_file;
 extern LogFile *stderr_log_file;
 extern LogType *assertion_log;
 extern LogType *debug_log;
-extern Mutex *g_debug_lock;
+extern LogType *info_log;
+extern Mutex *g_print_lock;
 
 extern void logging_init(Mutex *lock);
 extern void logging_fini();
@@ -131,12 +132,10 @@ extern void logging_fini();
       (log)->Message(std::string(buffer)); \
   } while (0)
 
+// Define assertion utilities.
 #define __ASSERTION(msg) LOG_MSG(assertion_log, (msg))
-#define __DEBUG(msg) LOG_MSG(debug_log, (msg))
-#define __DEBUG_FMT(fmt,...) LOG_FMT_MSG(debug_log, fmt, ## __VA_ARGS__)
 
-#ifdef _DEBUG
-#define DEBUG_ASSERT(cond) do { \
+#define SANITY_ASSERT(cond) do { \
     if(!(cond)) { \
       std::stringstream ss; \
       ss << __FILE__ << ": " << __FUNCTION__ << ": " << __LINE__ << std::endl; \
@@ -144,19 +143,41 @@ extern void logging_fini();
     } \
   } while (0)
 
+#ifdef _DEBUG
+#define DEBUG_ASSERT(cond) SANITY_ASSERT(cond)
+#else
+#define DEBUG_ASSERT(cond) do {} while (0)
+#endif // #ifdef _DEBUG
+
+// Define info print utilities.
+#define __INFO(msg) LOG_MSG(info_log, (msg))
+#define __INFO_FMT(fmt,...) LOG_FMT_MSG(info_log, fmt, ## __VA_ARGS__)
+
+#define INFO_PRINT(msg) __INFO(msg)
+#define INFO_FMT_PRINT(fmt,...) __INFO_FMT(fmt, ## __VA_ARGS__)
+#define INFO_FMT_PRINT_SAFE(fmt,...) do {\
+    g_print_lock->Lock(); \
+    __INFO_FMT(fmt, ## __VA_ARGS__); \
+    g_print_lock->Unlock(); \
+  } while (0)
+
+// Define debug print utilities.
+#define __DEBUG(msg) LOG_MSG(debug_log, (msg))
+#define __DEBUG_FMT(fmt,...) LOG_FMT_MSG(debug_log, fmt, ## __VA_ARGS__)
+
+#ifdef _DEBUG
 #define DEBUG_PRINT(msg) __DEBUG(msg)
 #define DEBUG_FMT_PRINT(fmt,...) __DEBUG_FMT(fmt, ## __VA_ARGS__)
 #define DEBUG_FMT_PRINT_SAFE(fmt,...) do {\
-    g_debug_lock->Lock(); \
+    g_print_lock->Lock(); \
     __DEBUG_FMT(fmt, ## __VA_ARGS__); \
-    g_debug_lock->Unlock(); \
+    g_print_lock->Unlock(); \
   } while (0)
 #else
-#define DEBUG_ASSERT(cond) do {} while (0)
 #define DEBUG_PRINT(msg) do {} while (0)
 #define DEBUG_FMT_PRINT(fmt,...) do {} while (0)
 #define DEBUG_FMT_PRINT_SAFE(fmt,...) do {} while (0)
-#endif
+#endif // #ifdef _DEBUG
 
 #endif
 

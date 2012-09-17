@@ -82,7 +82,7 @@ class Pintool(knob.KnobUser):
                 action='store_true',
                 dest='%sdebug' % self.knob_prefix,
                 default=False,
-                help='whether in debugging mode [default: False]')
+                help='whether use the debug version of the pintool [default: False]')
     def set_cmdline_options(self, options, args):
         knob.KnobUser.set_cmdline_options(self, options, args)
         self.debug = eval('options.%sdebug' % self.knob_prefix)

@@ -22,10 +22,10 @@ void DebugAnalyzer::Register() {
   knob_->RegisterBool("enable_debug", "whether enable the debug analyzer", "0");
   knob_->RegisterBool("debug_mem", "whether debug mem accesses", "0");
   knob_->RegisterBool("debug_atomic", "whether debug atomic inst", "0");
-  knob_->RegisterBool("debug_main", "whether debug main functions", "1");
+  knob_->RegisterBool("debug_main", "whether debug main functions", "0");
   knob_->RegisterBool("debug_call_return", "whether debug calls and returns", "0");
-  knob_->RegisterBool("debug_pthread", "whether debug pthread functions", "1");
-  knob_->RegisterBool("debug_malloc", "whether debug malloc functions", "1");
+  knob_->RegisterBool("debug_pthread", "whether debug pthread functions", "0");
+  knob_->RegisterBool("debug_malloc", "whether debug malloc functions", "0");
   knob_->RegisterBool("debug_syscall", "whether debug system calls", "0");
   knob_->RegisterBool("debug_track_clk", "whether track per thread clock", "1");
   knob_->RegisterBool("debug_track_callstack", "whether track runtime call stack", "0");

@@ -875,9 +875,12 @@ bool SchedulerCommon::IsCandidate(TRACE trace, INS ins) {
 }
 
 void SchedulerCommon::FlushWatch() {
-  DEBUG_FMT_PRINT_SAFE("flush code cache\n");
-  CODECACHE_FlushCache();
-  //PIN_RemoveInstrumentation();
+  DEBUG_ASSERT(curr_iroot_);
+  if (curr_iroot_->HasMem()) {
+    DEBUG_FMT_PRINT_SAFE("flush code cache\n");
+    CODECACHE_FlushCache();
+    //PIN_RemoveInstrumentation();
+  }
 }
 
 void SchedulerCommon::ActivelyExposed() {

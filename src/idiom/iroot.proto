@@ -27,6 +27,9 @@ message iRootProto {
   required uint32 id = 1;
   required IdiomType idiom = 2;
   repeated uint32 event_id = 3;
+  required uint32 count_pair_bool = 4;
+  required uint32 src_count = 5;
+  required uint32 dst_count = 6;
 }
 
 message iRootDBProto {

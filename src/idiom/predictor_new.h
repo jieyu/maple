@@ -21,7 +21,9 @@
 
 #include <map>
 #include <set>
+#include <list>
 #include <tr1/unordered_map>
+#include <stack>
 
 #include "core/basictypes.h"
 #include "core/analyzer.h"
@@ -160,8 +162,13 @@ class PredictorNew : public Analyzer {
     Inst *inst;
     FLockSet fls;
     TimeInfo tinfo;
+
   };
 
+ public : 
+  std::map <std::pair<AccSum*, AccSum*>*, std::pair<int, int>*> iroot_inst_count_map ;
+
+ protected :
   // the dynamic access
   class DynAcc {
    public:
@@ -258,6 +265,7 @@ class PredictorNew : public Analyzer {
 
     explicit Meta(Type t) : type(t) { acc_histo = new AccHisto; }
     ~Meta() { if (acc_histo) delete acc_histo; }
+
 
     Type type;
     AccHisto *acc_histo;
@@ -397,6 +405,10 @@ class PredictorNew : public Analyzer {
   void ProcessPostWait(thread_id_t curr_thd_id, CondMeta *meta);
   void ProcessPreBarrier(thread_id_t curr_thd_id, BarrierMeta *meta);
   void ProcessPostBarrier(thread_id_t curr_thd_id, BarrierMeta *meta);
+
+  int getNumAcc(AccSum*);
+
+  std::pair<int, int>* searchForAccSumPair(AccSum* src, AccSum* dst);
 
   // common databases
   Mutex *internal_lock_;

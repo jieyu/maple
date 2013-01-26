@@ -81,6 +81,18 @@ class iRoot {
   IdiomType idiom() { return proto_->idiom(); }
 
   void AddEvent(iRootEvent *event) { events_.push_back(event); }
+
+  void AddCountPair(std::pair<int, int>* counts) { 
+
+      proto_->set_count_pair_bool(1);
+      proto_->set_src_count(counts->first);
+      proto_->set_dst_count(counts->second);
+  }
+
+  uint32 getDstCount() { return proto_->src_count(); }
+  uint32 getSrcCount() { return proto_->dst_count(); }
+  uint32 getCountPairBool() { return proto_->count_pair_bool(); }
+
   iRootEvent *GetEvent(int index) { return events_[index]; }
   bool HasMem();
   bool HasSync();

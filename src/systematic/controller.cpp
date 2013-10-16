@@ -129,6 +129,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_IsMemoryRead(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceRead,
+                             IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD_EA,
@@ -139,6 +140,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_IsMemoryWrite(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceWrite,
+                             IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYWRITE_EA,
@@ -149,6 +151,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_HasMemoryRead2(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceRead2,
+                             IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD2_EA,
@@ -161,6 +164,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterRaceRead,
+                               IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -169,6 +173,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterRaceRead,
+                               IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -179,6 +184,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                              (AFUNPTR)__AfterRaceWrite,
+                             IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_END);
@@ -187,6 +193,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                              (AFUNPTR)__AfterRaceWrite,
+                             IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_END);
@@ -197,6 +204,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterRaceRead2,
+                               IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -205,6 +213,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterRaceRead2,
+                               IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);

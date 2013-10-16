@@ -419,6 +419,7 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
         if (INS_IsMemoryRead(ins)) {
           INS_InsertCall(ins, IPOINT_BEFORE,
                          (AFUNPTR)__BeforeiRootMemRead,
+                         IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                          IARG_UINT32, idx,
                          IARG_MEMORYREAD_EA,
                          IARG_MEMORYREAD_SIZE,
@@ -428,6 +429,7 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
         if (INS_IsMemoryWrite(ins)) {
           INS_InsertCall(ins, IPOINT_BEFORE,
                          (AFUNPTR)__BeforeiRootMemWrite,
+                         IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                          IARG_UINT32, idx,
                          IARG_MEMORYWRITE_EA,
                          IARG_MEMORYWRITE_SIZE,
@@ -437,6 +439,7 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
         if (INS_HasMemoryRead2(ins)) {
           INS_InsertCall(ins, IPOINT_BEFORE,
                          (AFUNPTR)__BeforeiRootMemRead,
+                         IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                          IARG_UINT32, idx,
                          IARG_MEMORYREAD2_EA,
                          IARG_MEMORYREAD_SIZE,
@@ -446,6 +449,7 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
         if (INS_HasFallThrough(ins)) {
           INS_InsertCall(ins, IPOINT_AFTER,
                          (AFUNPTR)__AfteriRootMem,
+                         IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                          IARG_UINT32, idx,
                          IARG_END);
         }
@@ -453,6 +457,7 @@ void SchedulerCommon::InstrumentMemiRootEvent(TRACE trace, UINT32 idx) {
         if (INS_IsBranchOrCall(ins)) {
           INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                          (AFUNPTR)__AfteriRootMem,
+                         IARG_CALL_ORDER, MAPLE_AFTER_CALL_ORDER,
                          IARG_UINT32, idx,
                          IARG_END);
         }
@@ -756,6 +761,7 @@ void SchedulerCommon::__InstrumentWatchInstCount(TRACE trace) {
   for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
     BBL_InsertCall(bbl, IPOINT_BEFORE,
                    (AFUNPTR)__WatchInstCount,
+                   IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                    IARG_UINT32, BBL_NumIns(bbl),
                    IARG_END);
   }
@@ -780,6 +786,7 @@ void SchedulerCommon::__InstrumentWatchMem(TRACE trace, bool cand) {
         Inst *inst = FindInst(INS_Address(ins));
         INS_InsertCall(ins, IPOINT_BEFORE,
                        (AFUNPTR)__WatchMemRead,
+                       IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                        IARG_PTR, inst,
                        IARG_MEMORYREAD_EA,
                        IARG_MEMORYREAD_SIZE,
@@ -791,6 +798,7 @@ void SchedulerCommon::__InstrumentWatchMem(TRACE trace, bool cand) {
         Inst *inst = FindInst(INS_Address(ins));
         INS_InsertCall(ins, IPOINT_BEFORE,
                        (AFUNPTR)__WatchMemWrite,
+                       IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                        IARG_PTR, inst,
                        IARG_MEMORYWRITE_EA,
                        IARG_MEMORYWRITE_SIZE,
@@ -802,6 +810,7 @@ void SchedulerCommon::__InstrumentWatchMem(TRACE trace, bool cand) {
         Inst *inst = FindInst(INS_Address(ins));
         INS_InsertCall(ins, IPOINT_BEFORE,
                        (AFUNPTR)__WatchMemRead,
+                       IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                        IARG_PTR, inst,
                        IARG_MEMORYREAD2_EA,
                        IARG_MEMORYREAD_SIZE,

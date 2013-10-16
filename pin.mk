@@ -15,13 +15,11 @@ ifdef OS
 endif
 
 ifeq ($(TARGET_COMPILER), gnu)
-  include $(PIN_HOME)/source/tools/makefile.gnu.config
   CXXFLAGS ?= -Wall -Werror -Wno-unknown-pragmas $(DBG) $(OPT)
   PIN = $(PIN_HOME)/pin
 endif
 
 ifeq ($(TARGET_COMPILER), ms)
-  include $(PIN_HOME)/source/tools/makefile.ms.config
   DBG ?=
   PIN = $(PIN_HOME)/pin.bat
 endif

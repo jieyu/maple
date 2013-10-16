@@ -97,6 +97,7 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
           continue; // skip stack accesses
 
         INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(__Change),
+                       IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                        IARG_UINT32, 1,
                        IARG_END);
       }

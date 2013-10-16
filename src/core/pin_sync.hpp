@@ -28,11 +28,11 @@
 // Define PIN mutex.
 class PinMutex : public Mutex {
  public:
-  PinMutex() { InitLock(&lock_); }
+  PinMutex() { PIN_InitLock(&lock_); }
   ~PinMutex() {}
 
-  void Lock() { GetLock(&lock_, 1); }
-  void Unlock() { ReleaseLock(&lock_); }
+  void Lock() { PIN_GetLock(&lock_, 1); }
+  void Unlock() { PIN_ReleaseLock(&lock_); }
   Mutex *Clone() { return new PinMutex; }
 
  protected:

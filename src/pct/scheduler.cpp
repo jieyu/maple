@@ -26,6 +26,7 @@
 
 #include <algorithm>
 
+
 namespace pct {
 
 Scheduler::Scheduler()
@@ -91,6 +92,7 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
             continue; // skip stack accesses
 
           INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(__PriorityChange),
+                         IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                          IARG_UINT32, 1,
                          IARG_END);
         }
@@ -99,6 +101,7 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
   } else {
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
       BBL_InsertCall(bbl, IPOINT_BEFORE, AFUNPTR(__PriorityChange),
+                     IARG_CALL_ORDER, MAPLE_BEFORE_CALL_ORDER,
                      IARG_UINT32, BBL_NumIns(bbl),
                      IARG_END);
     }

@@ -34,14 +34,14 @@ First, you need to set two environment variables.
         This could point to a regular Pin kit or a PinPlay kit.
         Make sure you build/install PinPlay tools first.
         $ cd $PIN_HOME/extras/pinplay/example
-        $ make
+        $ make 
         
     $ export PROTOBUF_HOME=/path/to/protobuf/home
 
 Then, you can build Maple by using make. By default, the debug version will be built. One can also choose to build the release version by specifying the compile type as follows.
 
     $ cd <maple_home>
-    $ make
+    $ make PIN_ROOT=$PIN_HOME
     $ make PIN_ROOT=$PIN_HOME compiletype=release
 
  To build with PinPlay:

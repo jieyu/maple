@@ -46,7 +46,7 @@ Then, you can build Maple by using make. By default, the debug version will be b
 
  To build with PinPlay:
 
-   $ make PIN_ROOT=$PIN_HOME compiletype=release  use_pinplay=1
+    $ make PIN_ROOT=$PIN_HOME compiletype=release  use_pinplay=1
 
 Once the building finishes, two directories can be found in the source directory.
 
@@ -197,9 +197,9 @@ To replay and debug the failing pinball with gdb:
 
 In another window:
 
-   $ gdb main
-   (gdb) target remote :37020
-   <set breakpoints etc and then 'continue'>
+    $ gdb main
+    (gdb) target remote :37020
+    (set breakpoints etc and then 'continue')
    
 ### Control Maple's Behavior
 

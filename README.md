@@ -45,6 +45,7 @@ Then, you can build Maple by using make. By default, the debug version will be b
     $ make PIN_ROOT=$PIN_HOME compiletype=release
 
  To build with PinPlay:
+
    $ make PIN_ROOT=$PIN_HOME compiletype=release  use_pinplay=1
 
 Once the building finishes, two directories can be found in the source directory.
@@ -170,11 +171,14 @@ From the output, we know that only one active test run happens in the above exam
     [MAPLE] active fatal error detected
 
 To record the failing execution with PinPlay logger, do the following:
+
         Make sure you build/install PinPlay tools first.
         $ cd $PIN_HOME/extras/pinplay/example
         $ make
+
 Then reproduce and record the bug:
 NOTE: this will work only if the bug is exposed during the active scheduling phase. A bug reproduced during profiling phase of Maple cannot be recorded with PinPlay.
+
     $ cd ~/example
     $ <maple_home/script/idiom active --log --target_iroot=24 --random_seed=1347667205 --- ./main 2
     $ mkdir -p failing.pinball
@@ -182,20 +186,19 @@ NOTE: this will work only if the bug is exposed during the active scheduling pha
 
 To replay the failing pinball:
 
-$PIN_HOME/pin -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay 
--replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+    $ $PIN_HOME/pin -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
 
 To replay and debug the failing pinball with gdb:
 
-$PIN_HOME/pin -appdebug -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
- Application stopped until continued from debugger.
- Start GDB, then issue this command at the (gdb) prompt:
-   target remote :37020
+    $ $PIN_HOME/pin -appdebug -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+    Application stopped until continued from debugger.
+    Start GDB, then issue this command at the (gdb) prompt:
+        target remote :37020
 
 In another window:
+
    $ gdb main
    (gdb) target remote :37020
-
    <set breakpoints etc and then 'continue'>
    
 ### Control Maple's Behavior

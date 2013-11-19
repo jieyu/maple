@@ -65,8 +65,8 @@ CFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 CXXFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 INCS := -I$(srcdir) -I$(PROTOBUF_HOME)/include
 ifeq ($(use_pinplay), 1)
-    INCS += -I$(PIN_HOME)/extras/pinplay/include
-    INCS += -I$(PIN_HOME)/extras/pinplay/include-ext
+    INCS += -I$(PIN_ROOT)/extras/pinplay/include
+    INCS += -I$(PIN_ROOT)/extras/pinplay/include-ext
 endif
 LDFLAGS += 
 LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
@@ -121,8 +121,8 @@ $(cxxobjs): $(builddir)%.o : $(srcdir)%.cc
 	$(CXX) -c $(CXXFLAGS) $(INCS) -o $@ $<
 
 ifeq ($(use_pinplay), 1)
-    PINPLAY_LIB_HOME=$(PIN_HOME)/extras/pinplay/lib/$(TARGET)
-    PINPLAY_EXT_LIB_HOME=$(PIN_HOME)/extras/pinplay/lib-ext/$(TARGET)
+    PINPLAY_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib/$(TARGET)
+    PINPLAY_EXT_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib-ext/$(TARGET)
 endif
 
 $(pincxxobjs): $(builddir)%.o : $(srcdir)%.cpp

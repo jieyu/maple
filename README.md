@@ -22,6 +22,8 @@ Maple depends on the following software.
 * GNU make, version 3.81 or higher
 * Python, version 2.4.3 or higher
 * [PIN](http://www.pintool.org/), revision 45467 or higher
+ If you want to record a buggy execution exposed by Maple so you can debug the recording with GDB, you will need a PinPlay enhanced Pin kit:
+ [PINPLAY](http://www.pinplay.org/), version 1.1 (update 11/2013) or higher.
 * [Google protobuf](http://code.google.com/p/protobuf/), version 2.4.1
 
 ### Make
@@ -29,13 +31,21 @@ Maple depends on the following software.
 First, you need to set two environment variables.
 
     $ export PIN_HOME=/path/to/pin/home
+        This could point to a regular Pin kit or a PinPlay kit.
+        Make sure you build/install PinPlay tools first.
+        $ cd $PIN_HOME/extras/pinplay/example
+        $ make
+        
     $ export PROTOBUF_HOME=/path/to/protobuf/home
 
 Then, you can build Maple by using make. By default, the debug version will be built. One can also choose to build the release version by specifying the compile type as follows.
 
     $ cd <maple_home>
     $ make
-    $ make compiletype=release
+    $ make PIN_ROOT=$PIN_HOME compiletype=release
+
+ To build with PinPlay:
+   $ make PIN_ROOT=$PIN_HOME compiletype=release  use_pinplay=1
 
 Once the building finishes, two directories can be found in the source directory.
 
@@ -159,6 +169,35 @@ From the output, we know that only one active test run happens in the above exam
     [MAPLE] === active iteration 1 done === (0.617391) (/home/jieyu/example)
     [MAPLE] active fatal error detected
 
+To record the failing execution with PinPlay logger, do the following:
+        Make sure you build/install PinPlay tools first.
+        $ cd $PIN_HOME/extras/pinplay/example
+        $ make
+Then reproduce and record the bug:
+NOTE: this will work only if the bug is exposed during the active scheduling phase. A bug reproduced during profiling phase of Maple cannot be recorded with PinPlay.
+    $ cd ~/example
+    $ <maple_home/script/idiom active --log --target_iroot=24 --random_seed=1347667205 --- ./main 2
+    $ mkdir -p failing.pinball
+    $ mv log* failing.pinball
+
+To replay the failing pinball:
+
+$PIN_HOME/pin -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay 
+-replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+
+To replay and debug the failing pinball with gdb:
+
+$PIN_HOME/pin -appdebug -t $PIN_HOME/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+ Application stopped until continued from debugger.
+ Start GDB, then issue this command at the (gdb) prompt:
+   target remote :37020
+
+In another window:
+   $ gdb main
+   (gdb) target remote :37020
+
+   <set breakpoints etc and then 'continue'>
+   
 ### Control Maple's Behavior
 
 In fact, the script `<maple_home>/maple` is a shortcut for `<maple_home>/script/idiom default`. `default` is a command which tells Maple to use the default mode to test the program (profiling + active testing). In the above example, `active` is another command which tells Maple to do active testing only. There are many other commands that can be used. To check that, please specify `--help` on the command line.

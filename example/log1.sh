@@ -1,4 +1,8 @@
 #!/bin/bash
+if [ -z $MAPLE ]; then
+ echo "Variable MAPLE not set. Should point to your Maple kit root."
+ exit
+fi
 pushd $1.tmp
 iroot=`$MAPLE/script/idiom display test_history | grep Success | head -2 | tail -1 | awk '{print $1}'`
 echo iroot = $iroot

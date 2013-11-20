@@ -1,12 +1,18 @@
+PIN_ROOT := $(shell echo $$PIN_HOME)
+CONFIG_ROOT := $(PIN_ROOT)/source/tools/Config
+include $(CONFIG_ROOT)/makefile.config
+include $(TOOLS_ROOT)/Config/makefile.default.rules
+
+
 # Top level makefile for the project.
 
 ########## CHANGE ACCORDINGLY ###########
 
 compiletype ?= debug
-use_pinplay ?= 0
+pinplay ?= 0
 packages := core tracer sinst pct randsched race systematic idiom
 user_flags := -D_USING_DEBUG_INFO
-ifeq ($(use_pinplay), 1)
+ifeq ($(pinplay), 1)
     user_flags += -DUSE_PINPLAY
 endif
 
@@ -64,7 +70,7 @@ endif
 CFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 CXXFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 INCS := -I$(srcdir) -I$(PROTOBUF_HOME)/include
-ifeq ($(use_pinplay), 1)
+ifeq ($(pinplay), 1)
     INCS += -I$(PIN_ROOT)/extras/pinplay/include
     INCS += -I$(PIN_ROOT)/extras/pinplay/include-ext
 endif
@@ -120,7 +126,7 @@ $(cxxobjs): $(builddir)%.o : $(srcdir)%.cc
 	@$(cxxgendepend);
 	$(CXX) -c $(CXXFLAGS) $(INCS) -o $@ $<
 
-ifeq ($(use_pinplay), 1)
+ifeq ($(pinplay), 1)
     PINPLAY_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib/$(TARGET)
     PINPLAY_EXT_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib-ext/$(TARGET)
 endif
@@ -129,7 +135,7 @@ $(pincxxobjs): $(builddir)%.o : $(srcdir)%.cpp
 	@$(pincxxgendepend);
 	$(CXX) -c $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) -o $@ $<
 
-ifeq ($(use_pinplay), 1)
+ifeq ($(pinplay), 1)
 $(pintools): $(builddir)%.so : $$(%_objs) $(PINPLAY_LIB_HOME)/libpinplay.a $(PINPLAY_EXT_LIB_HOME)/libbz2.a $(PINPLAY_EXT_LIB_HOME)/libz.a
 	$(LINKER) $(TOOL_LDFLAGS) $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
 else

@@ -1,4 +1,8 @@
 #!/bin/bash
+if [ -z $MAPLE ]; then
+ echo "Variable MAPLE not set. Should point to your Maple kit root."
+ exit
+fi
 mkdir -p $1.tmp
 pushd $1.tmp
 rm -rf *

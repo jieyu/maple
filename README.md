@@ -22,7 +22,7 @@ Maple depends on the following software.
 * GNU make, version 3.81 or higher
 * Python, version 2.4.3 or higher
 * [PIN](http://www.pintool.org/), revision 45467 or higher
- If you want to record a buggy execution exposed by Maple so you can debug the recording with GDB, you will need a PinPlay enhanced Pin kit:
+ If you want to record a buggy execution exposed by Maple so you can debug the recording with GDB, you will need a PinPlay-enhanced Pin kit:
  [PINPLAY](http://www.pinplay.org/), version 1.2 or higher.
 * [Google protobuf](http://code.google.com/p/protobuf/), version 2.4.1
 
@@ -31,14 +31,14 @@ Maple depends on the following software.
 First, you need to set two environment variables.
 
     $ export PIN_HOME=/path/to/pin/home
+    $ export PROTOBUF_HOME=/path/to/protobuf/home
 
-This could point to a regular Pin kit or a PinPlay kit.
+PIN_HOME  could point to a regular Pin kit or a PinPlay kit.
 Make sure you build/install PinPlay tools first.
 
         $ cd $PIN_HOME/extras/pinplay/example
         $ make 
         
-    $ export PROTOBUF_HOME=/path/to/protobuf/home
 
 Then, you can build Maple by using make. By default, the debug version will be built. One can also choose to build the release version by specifying the compile type as follows.
 

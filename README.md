@@ -31,8 +31,10 @@ Maple depends on the following software.
 First, you need to set two environment variables.
 
     $ export PIN_HOME=/path/to/pin/home
-#        This could point to a regular Pin kit or a PinPlay kit.
-#        Make sure you build/install PinPlay tools first.
+
+This could point to a regular Pin kit or a PinPlay kit.
+Make sure you build/install PinPlay tools first.
+
         $ cd $PIN_HOME/extras/pinplay/example
         $ make 
         
@@ -173,7 +175,8 @@ From the output, we know that only one active test run happens in the above exam
 
 To record the failing execution with PinPlay logger, do the following:
 
-#        Make sure you build/install PinPlay tools first.
+Make sure you build/install PinPlay tools first.
+
         $ cd $PIN_HOME/extras/pinplay/example
         $ make
 

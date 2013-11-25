@@ -1,10 +1,20 @@
+PIN_ROOT := $(shell echo $$PIN_HOME)
+CONFIG_ROOT := $(PIN_ROOT)/source/tools/Config
+include $(CONFIG_ROOT)/makefile.config
+include $(TOOLS_ROOT)/Config/makefile.default.rules
+
+
 # Top level makefile for the project.
 
 ########## CHANGE ACCORDINGLY ###########
 
 compiletype ?= debug
+pinplay ?= 0
 packages := core tracer sinst pct randsched race systematic idiom
 user_flags := -D_USING_DEBUG_INFO
+ifeq ($(pinplay), 1)
+    user_flags += -DUSE_PINPLAY
+endif
 
 ########## DO NOT CHANGE BELOW ##########
 
@@ -60,6 +70,10 @@ endif
 CFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 CXXFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
 INCS := -I$(srcdir) -I$(PROTOBUF_HOME)/include
+ifeq ($(pinplay), 1)
+    INCS += -I$(PIN_ROOT)/extras/pinplay/include
+    INCS += -I$(PIN_ROOT)/extras/pinplay/include-ext
+endif
 LDFLAGS += 
 LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
 LIBS += -lprotobuf
@@ -69,7 +83,7 @@ PIN_LIBS += -lrt -lprotobuf
 
 # gen dependency
 cxxgendepend = $(CXX) $(CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
-pincxxgendepend = $(CXX) $(CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
+pincxxgendepend = $(CXX) $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
 
 # rules
 .SECONDEXPANSION:
@@ -112,12 +126,22 @@ $(cxxobjs): $(builddir)%.o : $(srcdir)%.cc
 	@$(cxxgendepend);
 	$(CXX) -c $(CXXFLAGS) $(INCS) -o $@ $<
 
+ifeq ($(pinplay), 1)
+    PINPLAY_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib/$(TARGET)
+    PINPLAY_EXT_LIB_HOME=$(PIN_ROOT)/extras/pinplay/lib-ext/$(TARGET)
+endif
+
 $(pincxxobjs): $(builddir)%.o : $(srcdir)%.cpp
 	@$(pincxxgendepend);
-	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) ${OUTOPT}$@ $<
+	$(CXX) -c $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) -o $@ $<
 
+ifeq ($(pinplay), 1)
+$(pintools): $(builddir)%.so : $$(%_objs) $(PINPLAY_LIB_HOME)/libpinplay.a $(PINPLAY_EXT_LIB_HOME)/libbz2.a $(PINPLAY_EXT_LIB_HOME)/libz.a
+	$(LINKER) $(TOOL_LDFLAGS) $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
+else
 $(pintools): $(builddir)%.so : $$(%_objs)
-	$(PIN_LD) $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $^ ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
+	$(LINKER) $(TOOL_LDFLAGS) $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
+endif
 
 $(cmdtools): $(builddir)% : $$(%_objs)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LPATHS) $(LIBS)

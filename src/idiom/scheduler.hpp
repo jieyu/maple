@@ -25,6 +25,9 @@
 #include "idiom/observer.h"
 #include "idiom/observer_new.h"
 #include "idiom/scheduler_common.hpp"
+#ifdef USE_PINPLAY
+#include "pinplay.H"
+#endif
 
 namespace idiom {
 
@@ -48,6 +51,9 @@ class Scheduler : public SchedulerCommon {
   bool UseDecreasingPriorities();
   bool YieldWithDelay();
 
+#ifdef USE_PINPLAY
+  PINPLAY_ENGINE pinplay_engine;
+#endif
   Memo *memo_;
   sinst::SharedInstDB *sinst_db_;
   sinst::SharedInstAnalyzer *sinst_analyzer_;

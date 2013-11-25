@@ -23,6 +23,15 @@
 
 #include "core/basictypes.h"
 
+#ifdef USE_PINPLAY
+#include "pinplay.H"
+#define MAPLE_BEFORE_CALL_ORDER (PINPLAY_ENGINE::PinPlayFirstBeforeCallOrder() - 1)
+#define  MAPLE_AFTER_CALL_ORDER (PINPLAY_ENGINE::PinPlayLastAfterCallOrder() + 1)
+#else
+#define MAPLE_BEFORE_CALL_ORDER ( CALL_ORDER_FIRST - 1)
+#define  MAPLE_AFTER_CALL_ORDER ( CALL_ORDER_LAST  + 1)
+#endif
+
 // Global definitions
 
 // Find RTN by function name in an image.

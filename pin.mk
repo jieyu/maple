@@ -1,10 +1,10 @@
 # Rules for the PIN binary instrumentation tool.
 
-ifndef PIN_HOME
-  $(error Please define PIN_HOME environment.)
+ifndef PIN_ROOT
+  $(error Please define PIN_ROOT environment.)
 endif
 
-PIN_KIT = $(PIN_HOME)
+PIN_KIT = $(PIN_ROOT)
 KIT = 1
 
 TARGET_COMPILER ?= gnu
@@ -15,14 +15,12 @@ ifdef OS
 endif
 
 ifeq ($(TARGET_COMPILER), gnu)
-  include $(PIN_HOME)/source/tools/makefile.gnu.config
   CXXFLAGS ?= -Wall -Werror -Wno-unknown-pragmas $(DBG) $(OPT)
-  PIN = $(PIN_HOME)/pin
+  PIN = $(PIN_ROOT)/pin
 endif
 
 ifeq ($(TARGET_COMPILER), ms)
-  include $(PIN_HOME)/source/tools/makefile.ms.config
   DBG ?=
-  PIN = $(PIN_HOME)/pin.bat
+  PIN = $(PIN_ROOT)/pin.bat
 endif
 

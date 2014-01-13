@@ -63,18 +63,21 @@ INCS := -I$(srcdir) -I$(PROTOBUF_HOME)/include
 LDFLAGS += 
 LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
 LIBS += -lprotobuf
-PIN_LDFLAGS +=
-PIN_LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
-PIN_LIBS += -lrt -lprotobuf
+TOOL_LDFLAGS +=
+TOOL_LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
+TOOL_LIBS += -lrt -lprotobuf
 
 # gen dependency
 cxxgendepend = $(CXX) $(CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
-pincxxgendepend = $(CXX) $(CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
+pincxxgendepend = $(CXX) $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<
+
+# set the default goal to be maple-all
+.DEFAULT_GOAL := maple-all
 
 # rules
 .SECONDEXPANSION:
 
-all: $(pintools) $(cmdtools) proto-scripts
+maple-all: $(pintools) $(cmdtools) proto-scripts
 	
 proto-scripts: $(protoscripts) $(protopkgscripts)
 
@@ -114,10 +117,10 @@ $(cxxobjs): $(builddir)%.o : $(srcdir)%.cc
 
 $(pincxxobjs): $(builddir)%.o : $(srcdir)%.cpp
 	@$(pincxxgendepend);
-	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) $(INCS) ${OUTOPT}$@ $<
+	$(CXX) $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(INCS) $(COMP_OBJ)$@ $<
 
 $(pintools): $(builddir)%.so : $$(%_objs)
-	$(PIN_LD) $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $^ ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
+	$(LINKER) $(TOOL_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ ${TOOL_LPATHS} $(TOOL_LIBS) $(DBG)
 
 $(cmdtools): $(builddir)% : $$(%_objs)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LPATHS) $(LIBS)

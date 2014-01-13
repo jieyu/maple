@@ -5,4 +5,3 @@ ifndef PROTOBUF_HOME
 endif
 
 PROTOC=$(PROTOBUF_HOME)/bin/protoc
-

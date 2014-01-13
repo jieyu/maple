@@ -21,7 +21,7 @@ Maple depends on the following software.
 
 * GNU make, version 3.81 or higher
 * Python, version 2.4.3 or higher
-* [PIN](http://www.pintool.org/), revision 45467 or higher
+* [PIN](http://www.pintool.org/), revision 62732 or higher
 * [Google protobuf](http://code.google.com/p/protobuf/), version 2.4.1
 
 ### Make

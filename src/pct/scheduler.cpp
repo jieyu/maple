@@ -26,6 +26,8 @@
 
 #include <algorithm>
 
+#include "core/pin_util.hpp"
+
 namespace pct {
 
 Scheduler::Scheduler()
@@ -90,7 +92,9 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
           if (INS_IsStackRead(ins) || INS_IsStackWrite(ins))
             continue; // skip stack accesses
 
-          INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(__PriorityChange),
+          INS_InsertCall(ins, IPOINT_BEFORE,
+                         AFUNPTR(__PriorityChange),
+                         CALL_ORDER_BEFORE
                          IARG_UINT32, 1,
                          IARG_END);
         }
@@ -98,7 +102,9 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
     }
   } else {
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-      BBL_InsertCall(bbl, IPOINT_BEFORE, AFUNPTR(__PriorityChange),
+      BBL_InsertCall(bbl, IPOINT_BEFORE,
+                     AFUNPTR(__PriorityChange),
+                     CALL_ORDER_BEFORE
                      IARG_UINT32, BBL_NumIns(bbl),
                      IARG_END);
     }

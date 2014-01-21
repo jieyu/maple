@@ -31,6 +31,9 @@ def pin_home():
     else:
         return os.environ['PIN_HOME']
 
+def has_pinplay():
+    return os.path.exists(pin_home() + '/extras/pinplay')
+
 def pkg_home():
     path = __file__
     return path[0:path.rfind('/script')]

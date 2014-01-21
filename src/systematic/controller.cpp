@@ -23,6 +23,8 @@
 #include <cassert>
 #include <cerrno>
 
+#include "core/pin_util.hpp"
+
 namespace systematic {
 
 Controller::CreationInfo::hash_val_t Controller::CreationInfo::Hash() {
@@ -129,6 +131,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_IsMemoryRead(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceRead,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD_EA,
@@ -139,6 +142,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_IsMemoryWrite(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceWrite,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYWRITE_EA,
@@ -149,6 +153,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_HasMemoryRead2(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeRaceRead2,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD2_EA,
@@ -161,6 +166,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterRaceRead,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -169,6 +175,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterRaceRead,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -178,18 +185,20 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
             if (INS_IsMemoryWrite(ins)) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
-                             (AFUNPTR)__AfterRaceWrite,
-                             IARG_THREAD_ID,
-                             IARG_PTR, inst,
-                             IARG_END);
+                              (AFUNPTR)__AfterRaceWrite,
+                              CALL_ORDER_AFTER
+                              IARG_THREAD_ID,
+                              IARG_PTR, inst,
+                              IARG_END);
               }
 
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
-                             (AFUNPTR)__AfterRaceWrite,
-                             IARG_THREAD_ID,
-                             IARG_PTR, inst,
-                             IARG_END);
+                              (AFUNPTR)__AfterRaceWrite,
+                              CALL_ORDER_AFTER
+                              IARG_THREAD_ID,
+                              IARG_PTR, inst,
+                              IARG_END);
               }
             }
 
@@ -197,6 +206,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterRaceRead2,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -205,6 +215,7 @@ void Controller::HandlePreInstrumentTrace(TRACE trace) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterRaceRead2,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);

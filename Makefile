@@ -3,7 +3,6 @@
 ########## CHANGE ACCORDINGLY ###########
 
 compiletype ?= debug
-pinplay ?= 0
 packages := core tracer sinst pct randsched race systematic idiom
 user_flags := -D_USING_DEBUG_INFO
 

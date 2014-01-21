@@ -26,6 +26,8 @@
 #include <cassert>
 #include <algorithm>
 
+#include "core/pin_util.hpp"
+
 namespace randsched {
 
 static unsigned long next = 1;
@@ -96,7 +98,9 @@ void Scheduler::HandlePostInstrumentTrace(TRACE trace) {
         if (INS_IsStackRead(ins) || INS_IsStackWrite(ins))
           continue; // skip stack accesses
 
-        INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(__Change),
+        INS_InsertCall(ins, IPOINT_BEFORE,
+                       AFUNPTR(__Change),
+                       CALL_ORDER_BEFORE
                        IARG_UINT32, 1,
                        IARG_END);
       }

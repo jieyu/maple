@@ -21,7 +21,20 @@
 
 #include "pin.H"
 
+#ifdef CONFIG_PINPLAY
+#include "pinplay.H"
+#endif
+
 #include "core/basictypes.h"
+
+// Setup call orders for PinPlay.
+#ifdef CONFIG_PINPLAY
+#define CALL_ORDER_BEFORE IARG_CALL_ORDER, (PINPLAY_ENGINE::PinPlayFirstBeforeCallOrder() - 1),
+#define CALL_ORDER_AFTER IARG_CALL_ORDER, (PINPLAY_ENGINE::PinPlayLastAfterCallOrder() + 1),
+#else
+#define CALL_ORDER_BEFORE
+#define CALL_ORDER_AFTER
+#endif
 
 // Global definitions
 

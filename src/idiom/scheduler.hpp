@@ -19,6 +19,10 @@
 #ifndef IDIOM_SCHEDULER_HPP_
 #define IDIOM_SCHEDULER_HPP_
 
+#ifdef CONFIG_PINPLAY
+#include "pinplay.H"
+#endif
+
 #include "sinst/sinst.h"
 #include "sinst/analyzer.h"
 #include "idiom/memo.h"
@@ -53,6 +57,10 @@ class Scheduler : public SchedulerCommon {
   sinst::SharedInstAnalyzer *sinst_analyzer_;
   Observer *observer_;
   ObserverNew *observer_new_;
+
+#ifdef CONFIG_PINPLAY
+  PINPLAY_ENGINE pinplay_engine_;
+#endif
 
  private:
   DISALLOW_COPY_CONSTRUCTORS(Scheduler);

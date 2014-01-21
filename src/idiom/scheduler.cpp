@@ -33,6 +33,9 @@ Scheduler::Scheduler()
 void Scheduler::HandlePreSetup() {
   SchedulerCommon::HandlePreSetup();
 
+#ifdef CONFIG_PINPLAY
+  knob_->RegisterBool("pinplay", "log execution using PinPlay", "0");
+#endif
   knob_->RegisterBool("ignore_ic_pthread", "do not count instructions in pthread", "1");
   knob_->RegisterBool("ignore_lib", "whether ignore accesses from common libraries", "0");
   knob_->RegisterBool("memo_failed", "whether memoize fail-to-expose iroots", "1");
@@ -81,6 +84,12 @@ void Scheduler::HandlePostSetup() {
     observer_new_->Setup(CreateMutex(), sinfo_, iroot_db_, memo_, sinst_db_);
     AddAnalyzer(observer_new_);
   }
+
+#ifdef CONFIG_PINPLAY
+  if (knob_->ValueBool("pinplay")) {
+    pinplay_engine_.Activate(0, NULL, TRUE, FALSE);
+  }
+#endif
 }
 
 bool Scheduler::HandleIgnoreInstCount(IMG img) {

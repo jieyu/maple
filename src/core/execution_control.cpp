@@ -23,6 +23,7 @@
 #include "core/logging.h"
 #include "core/stat.h"
 #include "core/debug_analyzer.h"
+#include "core/pin_util.hpp"
 
 ExecutionControl *ExecutionControl::ctrl_ = NULL;
 
@@ -125,6 +126,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
           for (INS ins = BBL_InsHead(bbl); INS_Valid(ins);ins = INS_Next(ins)) {
             INS_InsertCall(ins, IPOINT_BEFORE,
                            (AFUNPTR)__InstCount,
+                           CALL_ORDER_BEFORE
                            IARG_FAST_ANALYSIS_CALL,
                            IARG_THREAD_ID,
                            IARG_END);
@@ -133,6 +135,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
           // No instrumentation on memory accesses, so bbl ticker is enough.
           BBL_InsertCall(bbl, IPOINT_BEFORE,
                          (AFUNPTR)__InstCount2,
+                         CALL_ORDER_BEFORE
                          IARG_FAST_ANALYSIS_CALL,
                          IARG_THREAD_ID,
                          IARG_UINT32, BBL_NumIns(bbl),
@@ -152,6 +155,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
 
         INS_InsertCall(ins, IPOINT_BEFORE,
                        (AFUNPTR)__BeforeAtomicInst,
+                       CALL_ORDER_BEFORE
                        IARG_THREAD_ID,
                        IARG_PTR, inst,
                        IARG_UINT32, INS_Opcode(ins),
@@ -161,6 +165,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
         if (INS_HasFallThrough(ins)) {
           INS_InsertCall(ins, IPOINT_AFTER,
                          (AFUNPTR)__AfterAtomicInst,
+                         CALL_ORDER_AFTER
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_UINT32, INS_Opcode(ins),
@@ -170,6 +175,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
         if (INS_IsBranchOrCall(ins)) {
           INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                          (AFUNPTR)__AfterAtomicInst,
+                         CALL_ORDER_AFTER
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_UINT32, INS_Opcode(ins),
@@ -202,6 +208,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
             if (INS_IsMemoryRead(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeMemRead,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD_EA,
@@ -212,6 +219,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
             if (INS_IsMemoryWrite(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeMemWrite,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYWRITE_EA,
@@ -222,6 +230,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
             if (INS_HasMemoryRead2(ins)) {
               INS_InsertCall(ins, IPOINT_BEFORE,
                              (AFUNPTR)__BeforeMemRead2,
+                             CALL_ORDER_BEFORE
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_MEMORYREAD2_EA,
@@ -236,6 +245,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterMemRead,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -244,6 +254,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterMemRead,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -254,6 +265,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                              (AFUNPTR)__AfterMemWrite,
+                             CALL_ORDER_AFTER
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_END);
@@ -262,6 +274,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                              (AFUNPTR)__AfterMemWrite,
+                             CALL_ORDER_AFTER
                              IARG_THREAD_ID,
                              IARG_PTR, inst,
                              IARG_END);
@@ -272,6 +285,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_HasFallThrough(ins)) {
                 INS_InsertCall(ins, IPOINT_AFTER,
                                (AFUNPTR)__AfterMemRead2,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -280,6 +294,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
               if (INS_IsBranchOrCall(ins)) {
                 INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                                (AFUNPTR)__AfterMemRead2,
+                               CALL_ORDER_AFTER
                                IARG_THREAD_ID,
                                IARG_PTR, inst,
                                IARG_END);
@@ -299,6 +314,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
 
           INS_InsertCall(ins, IPOINT_BEFORE,
                          (AFUNPTR)__BeforeCall,
+                         CALL_ORDER_BEFORE
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_BRANCH_TARGET_ADDR,
@@ -306,6 +322,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
 
           INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                          (AFUNPTR)__AfterCall,
+                         CALL_ORDER_AFTER
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_BRANCH_TARGET_ADDR,
@@ -319,6 +336,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
 
           INS_InsertCall(ins, IPOINT_BEFORE,
                          (AFUNPTR)__BeforeReturn,
+                         CALL_ORDER_BEFORE
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_BRANCH_TARGET_ADDR,
@@ -326,6 +344,7 @@ void ExecutionControl::InstrumentTrace(TRACE trace, VOID *v) {
 
           INS_InsertCall(ins, IPOINT_TAKEN_BRANCH,
                          (AFUNPTR)__AfterReturn,
+                         CALL_ORDER_AFTER
                          IARG_THREAD_ID,
                          IARG_PTR, inst,
                          IARG_BRANCH_TARGET_ADDR,
@@ -824,6 +843,7 @@ void ExecutionControl::InstrumentStartupFunc(IMG img) {
         RTN_Open(rtn);
         RTN_InsertCall(rtn, IPOINT_BEFORE,
                        (AFUNPTR)__Main,
+                       CALL_ORDER_BEFORE
                        IARG_THREAD_ID,
                        IARG_CONTEXT,
                        IARG_END);
@@ -836,6 +856,7 @@ void ExecutionControl::InstrumentStartupFunc(IMG img) {
         RTN_Open(rtn);
         RTN_InsertCall(rtn, IPOINT_BEFORE,
                        (AFUNPTR)__ThreadMain,
+                       CALL_ORDER_BEFORE
                        IARG_THREAD_ID,
                        IARG_CONTEXT,
                        IARG_END);

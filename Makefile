@@ -3,6 +3,7 @@
 ########## CHANGE ACCORDINGLY ###########
 
 compiletype ?= debug
+pinplay ?= 0
 packages := core tracer sinst pct randsched race systematic idiom
 user_flags := -D_USING_DEBUG_INFO
 
@@ -23,6 +24,7 @@ include pin.mk
 srcdir := src/
 scriptdir := script/
 protoscriptdir := $(scriptdir)maple/proto/
+
 ifeq ($(compiletype), debug)
   builddir := build-debug/
 else ifeq ($(compiletype), release)
@@ -50,6 +52,16 @@ $(foreach name,$(pintool_names),$(eval $(name)_objs := $($(name)_objs:%=$(buildd
 $(foreach name,$(cmdtool_names),$(eval $(name)_objs := $($(name)_objs:%=$(builddir)%)))
 
 # set compile flags
+CFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
+CXXFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
+INCS += -I$(srcdir) -I$(PROTOBUF_HOME)/include
+LDFLAGS += 
+LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
+LIBS += -lprotobuf
+TOOL_LDFLAGS +=
+TOOL_LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
+TOOL_LIBS += -lrt -lprotobuf
+
 ifeq ($(compiletype), debug)
   CFLAGS += -Wall -Werror -g -D_DEBUG
   CXXFLAGS += -Wall -Werror -g -D_DEBUG
@@ -57,15 +69,6 @@ else
   CFLAGS += -O3 -fomit-frame-pointer
   CXXFLAGS += -O3 -fomit-frame-pointer
 endif
-CFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
-CXXFLAGS += -fPIC -D_GNU_SOURCE $(user_flags)
-INCS := -I$(srcdir) -I$(PROTOBUF_HOME)/include
-LDFLAGS += 
-LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
-LIBS += -lprotobuf
-TOOL_LDFLAGS +=
-TOOL_LPATHS += -L$(PROTOBUF_HOME)/lib -Wl,-rpath,$(PROTOBUF_HOME)/lib
-TOOL_LIBS += -lrt -lprotobuf
 
 # gen dependency
 cxxgendepend = $(CXX) $(CXXFLAGS) $(INCS) -MM -MT $@ -MF $(builddir)$*.d $<

@@ -145,6 +145,7 @@ class Scheduler(pintool.Pintool):
         pintool.Pintool.__init__(self, 'idiom_scheduler')
         if config.has_pinplay():
             self.register_knob('pinplay', 'bool', False, 'log execution using PinPlay')
+            self.register_knob('pinplay_options', 'string', '', 'options passed to PinPlay', 'OPTIONS')
         self.register_knob('ignore_ic_pthread', 'bool', True, 'do not count instructions in pthread')
         self.register_knob('ignore_lib', 'bool', False, 'whether ignore accesses from common libraries')
         self.register_knob('strict', 'bool', True, 'whether use non-preemptive priorities')

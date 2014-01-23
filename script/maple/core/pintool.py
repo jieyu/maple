@@ -68,7 +68,10 @@ class Pintool(knob.KnobUser):
                 else:
                     c.append('0')
             elif self.knob_types[k] == 'string':
-                if self.knob_metavars[k] == 'PATH':
+                if self.knob_metavars[k] == 'OPTIONS':
+                    c.pop()
+                    c.extend(v.split(','))
+                elif self.knob_metavars[k] == 'PATH':
                     c.append(os.path.realpath(v))
                 else:
                     c.append(v)

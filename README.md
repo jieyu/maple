@@ -21,8 +21,12 @@ Maple depends on the following software.
 
 * GNU make, version 3.81 or higher
 * Python, version 2.4.3 or higher
-* [PIN](http://www.pintool.org/), revision 62732 or higher
 * [Google protobuf](http://code.google.com/p/protobuf/), version 2.4.1
+* [Pin](http://www.pintool.org/), revision 62732 or higher
+
+If you want to record the buggy execution exposed by Maple, you will need a PinPlay-enhanced Pin kit:
+
+* [PinPlay](http://www.pinplay.org/), version 1.2 or higher
 
 ### Make
 
@@ -30,6 +34,10 @@ First, you need to set two environment variables.
 
     $ export PIN_HOME=/path/to/pin/home
     $ export PROTOBUF_HOME=/path/to/protobuf/home
+
+If you are using PinPlay kit.
+
+    $ export PIN_HOME=/path/to/pinplay/home
 
 Then, you can build Maple by using make. By default, the debug version will be built. One can also choose to build the release version by specifying the compile type as follows.
 
@@ -158,6 +166,30 @@ From the output, we know that only one active test run happens in the above exam
     $ main: main.cc:36: int main(int, char**): Assertion `global_count==NUM_THREADS' failed.
     [MAPLE] === active iteration 1 done === (0.617391) (/home/jieyu/example)
     [MAPLE] active fatal error detected
+
+### Record and Replay using PinPlay
+
+Maple is also capable of doing record and replay using PinPlay (Harish Patil kindly provided the patch. Thank you!). While using the active scheduler, one can specify the `--pinplay` option to record the execution (make sure Maple is built with the PinPlay kit).
+
+    $ cd ~/example
+    $ <maple_home>/script/idiom active --pinplay --target_iroot=24 --random_seed=1347667205 --- ./main 2
+
+If the bug is exposed by the active scheduler, one can replay the failed execution by doing the following.
+
+    $ mdkir -p failing.pinball
+    $ mv log* failing.pinball
+    $ <pinplay_home>/pin -t <pinplay_home>/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+
+To replay and debug the failed execution, we can do the following.
+
+    $ <pinplay_home>/pin -appdebug -t <pinplay_home>/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
+    Application stopped until continued from debugger.
+    Start GDB, then issue this command at the (gdb) prompt:
+        target remote :37020
+
+    $ gdb main
+    (gdb) target remote :37020
+    ...
 
 ### Control Maple's Behavior
 

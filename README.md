@@ -172,12 +172,10 @@ From the output, we know that only one active test run happens in the above exam
 Maple is also capable of doing record and replay using PinPlay (Harish Patil kindly provided the patch. Thank you!). While using the active scheduler, one can specify the `--pinplay` option to record the execution (make sure Maple is built with the PinPlay kit).
 
     $ cd ~/example
-    $ <maple_home>/script/idiom active --pinplay --target_iroot=24 --random_seed=1347667205 --- ./main 2
+    $ <maple_home>/script/idiom active --pinplay --pinplay_options="-log:basename,failing.pinball/log" --target_iroot=24 --random_seed=1347667205 --- ./main 2
 
 If the bug is exposed by the active scheduler, one can replay the failed execution by doing the following.
 
-    $ mdkir -p failing.pinball
-    $ mv log* failing.pinball
     $ <pinplay_home>/pin -t <pinplay_home>/extras/pinplay/bin/intel64/pinplay-driver.so -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true
 
 To replay and debug the failed execution, we can do the following.

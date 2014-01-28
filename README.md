@@ -175,7 +175,7 @@ Maple is also capable of doing record and replay using PinPlay (Harish Patil kin
     $ <maple_home>/script/idiom active --pinplay --pinplay_options="-log:basename,failing.pinball/log" \
       --target_iroot=24 --random_seed=1347667205 --- ./main 2
 
-If the bug is exposed by the active scheduler, one can replay the failed execution by doing the following.
+If the bug is exposed by the active scheduler, one can replay the failed execution by doing the following (make sure you have built pinplay-driver.so by going to `<pinplay_home>/extras/pinplay/example` and typing `make`).
 
     $ <pinplay_home>/pin -t <pinplay_home>/extras/pinplay/bin/intel64/pinplay-driver.so \
       -replay -replay:addr_trans -replay:basename failing.pinball/log -- /bin/true

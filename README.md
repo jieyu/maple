@@ -122,9 +122,9 @@ Obviously, this program has a data race on the shared variable `global_count`. W
 
 ### Compile the Program
 
-Compile the program using `g++` as you would do for any other programs. Remember to use `-g` and `-fno-omit-frame-pointer` as recommended. Suppose that the source file `main.cc` is in `~/example`.
+Compile the program using `g++` as you would do for any other programs. Remember to use `-g` and `-fno-omit-frame-pointer` as recommended. Suppose that the source file `main.cc` is in `~/example/shared_counter/main.cc`.
 
-    $ cd ~/example
+    $ cd ~/example/shared_counter
     $ g++ -fno-omit-frame-pointer -g -pthread -o main main.cc
 
 ### Expose the Bug

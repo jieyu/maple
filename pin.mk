@@ -24,4 +24,10 @@ ifneq ($(wildcard $(PIN_HOME)/extras/pinplay),)
 
   # PinPlay library must be loaded fist.
   TOOL_LIBS := -lpinplay -lbz2 -lz $(TOOL_LIBS)
+
+  # Controller library (Pin-2.14).
+  CONTROLLER_LIB := $(CONTROLLERLIB)
 endif
+
+$(CONTROLLERLIB):
+	$(MAKE) -C $(TOOLS_ROOT)/InstLib dir $(OBJDIR)controller$(LIB_SUFFIX)

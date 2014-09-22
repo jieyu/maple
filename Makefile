@@ -121,8 +121,8 @@ $(pincxxobjs): $(builddir)%.o : $(srcdir)%.cpp
 	@$(pincxxgendepend);
 	$(CXX) $(CXXFLAGS) $(TOOL_INCLUDES) $(TOOL_CXXFLAGS) $(INCS) $(COMP_OBJ)$@ $<
 
-$(pintools): $(builddir)%.so : $$(%_objs)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ ${TOOL_LPATHS} $(TOOL_LIBS) $(DBG)
+$(pintools): $(builddir)%.so : $$(%_objs) $(CONTROLLER_LIB)
+	$(LINKER) $(TOOL_LDFLAGS) $(LINK_DEBUG) ${LINK_EXE}$@ $^ ${TOOL_LPATHS} $(TOOL_LIBS) $(CONTROLLER_LIB) $(DBG)
 
 $(cmdtools): $(builddir)% : $$(%_objs)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LPATHS) $(LIBS)

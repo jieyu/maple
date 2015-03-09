@@ -146,6 +146,13 @@ class WrapperBase {
 #define ACCESSORS_NORET(NUM_ARGS)                                           \
   ARG_ACCESSORS(NUM_ARGS)
 
+// NOTE: The API PIN_CallApplicationFunction changed from Rev 71293.
+#if CONFIG_PIN_REVISION >= 71293
+#define CALL_ORIGINAL_PARAM NULL,
+#else
+#define CALL_ORIGINAL_PARAM
+#endif
+
 #define CALL_ORIGINAL(R, NUM_ARGS)                                          \
   void CallOriginal() {                                                     \
     assert(ori_funptr_);                                                    \
@@ -154,6 +161,7 @@ class WrapperBase {
         tid_,                                                               \
         CALLINGSTD_DEFAULT,                                                 \
         ori_funptr_,                                                        \
+        CALL_ORIGINAL_PARAM                                                 \
         PIN_PARG(R), &ret_val_,                                             \
         PARGS(NUM_ARGS)                                                     \
         PIN_PARG_END());                                                    \
@@ -167,6 +175,7 @@ class WrapperBase {
         tid_,                                                               \
         CALLINGSTD_DEFAULT,                                                 \
         ori_funptr_,                                                        \
+        CALL_ORIGINAL_PARAM                                                 \
         PIN_PARG(void),                                                     \
         PARGS(NUM_ARGS)                                                     \
         PIN_PARG_END());                                                    \

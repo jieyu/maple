@@ -10,6 +10,10 @@ CONFIG_ROOT := $(PIN_ROOT)/source/tools/Config
 include $(CONFIG_ROOT)/makefile.config
 #include $(TOOLS_ROOT)/Config/makefile.default.rules
 
+PIN_REVISION := $(shell $(PIN_ROOT)/pin -version | grep Rev | cut -d ' ' -f 3)
+CFLAGS += -DCONFIG_PIN_REVISION=$(PIN_REVISION)
+CXXFLAGS += -DCONFIG_PIN_REVISION=$(PIN_REVISION)
+
 # Check if this is a PinPlay kit.
 ifneq ($(wildcard $(PIN_HOME)/extras/pinplay),)
   $(info *** Building with PinPlay kit ***)

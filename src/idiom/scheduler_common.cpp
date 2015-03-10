@@ -1560,6 +1560,16 @@ void SchedulerCommon::Idiom1BeforeEvent0(address_t addr, size_t size) {
 
   DEBUG_STAT_INC("event0", 1);
 
+  // pankit fix : increment the count for curr_thd
+  if (s->num_mem_acc.find(curr_thd_id) == s->num_mem_acc.end()) {
+
+      s->num_mem_acc[curr_thd_id] = 1;
+
+  } else {
+
+      s->num_mem_acc[curr_thd_id] = s->num_mem_acc.find(curr_thd_id)->second + 1;
+  }
+
   while (true) {
     // control variables
     bool restart = false;
@@ -1973,6 +1983,17 @@ void SchedulerCommon::Idiom1WatchAccess(address_t addr, size_t size) {
           DEBUG_ASSERT(GetPriority(curr_thd_id) == LowerPriority());
           if (OVERLAP(addr, size, s->addr_[0], s->size_[0])) {
             // cannot be delayed any more
+
+            // pankit fix : increment the count for the curr_thd
+            if (s->num_mem_acc.find(curr_thd_id) == s->num_mem_acc.end()) {
+
+                s->num_mem_acc[curr_thd_id] = 1;
+
+            } else {
+
+                s->num_mem_acc[curr_thd_id] = s->num_mem_acc.find(curr_thd_id)->second + 1;
+            }
+
             if (Idiom1CheckGiveup(2)) {
               DEBUG_FMT_PRINT_SAFE("[T%lx] watch access give up\n", curr_thd_id);
               DelaySet copy;
@@ -1991,6 +2012,16 @@ void SchedulerCommon::Idiom1WatchAccess(address_t addr, size_t size) {
           }
         } else {
           if (OVERLAP(addr, size, s->addr_[0], s->size_[0])) {
+            // pankit fix : increment the count for the curr_thd
+            if (s->num_mem_acc.find(curr_thd_id) == s->num_mem_acc.end()) {
+
+                s->num_mem_acc[curr_thd_id] = 1;
+
+            } else {
+
+                s->num_mem_acc[curr_thd_id] = s->num_mem_acc.find(curr_thd_id)->second + 1;
+            }
+
             if (GetPriority(curr_thd_id) == LowerPriority()) {
               // cannot be delayed any more
               if (Idiom1CheckGiveup(2)) {
@@ -2008,11 +2039,20 @@ void SchedulerCommon::Idiom1WatchAccess(address_t addr, size_t size) {
                 UnlockSchedStatus();
                 restart = true;
               }
-            } else {
-              s->delay_set_.insert(curr_thd_id);
-              UnlockSchedStatus();
-              SetPriorityLow(curr_thd_id);
-              restart = true;
+             
+              // pankit fix : if the count is satisfied then only give up, else increment go ahead with high priority
+            } else  {
+                
+                if (curr_iroot_->getCountPairBool() &&  s->num_mem_acc.find(curr_thd_id) != s->num_mem_acc.end() && 
+                            s->num_mem_acc.find(curr_thd_id)->second != curr_iroot_->getDstCount()) {
+                    UnlockSchedStatus();
+                    SetPriorityHigh(curr_thd_id);
+                } else {
+                    s->delay_set_.insert(curr_thd_id);
+                    UnlockSchedStatus();
+                    SetPriorityLow(curr_thd_id);
+                    restart = true;
+                }
             }
           } else {
             UnlockSchedStatus();

@@ -188,6 +188,7 @@ void PredictorNew::SignalReceived(thread_id_t curr_thd_id,
 
 void PredictorNew::ThreadStart(thread_id_t curr_thd_id,
                                thread_id_t parent_thd_id) {
+
   // create thread local vector clock and lockset
   VectorClock *curr_vc = new VectorClock;
   LockSet *curr_ls = new LockSet;
@@ -218,6 +219,7 @@ void PredictorNew::BeforeMemRead(thread_id_t curr_thd_id,
                                  Inst *inst,
                                  address_t addr,
                                  size_t size) {
+    
   // XXX: this function needs to be implemented as fast as possible
   ScopedLock locker(internal_lock_);
   if (FilterAccess(addr))
@@ -729,6 +731,22 @@ bool PredictorNew::ExistAccSumPair(AccSum *src, AccSum *dst) {
 }
 
 void PredictorNew::AddAccSumPair(AccSum *src, AccSum *dst) {
+
+    // only add the count pair for mem accsum
+    if ((src->type == IROOT_EVENT_MEM_READ || src->type == IROOT_EVENT_MEM_WRITE) && 
+        (dst->type == IROOT_EVENT_MEM_READ || dst->type == IROOT_EVENT_MEM_WRITE)) {
+        
+        int src_count =  getNumAcc(src);
+        
+        int dst_count = getNumAcc(dst);
+        
+        std::pair <AccSum*, AccSum*>* acc_sum_pair =  new std::pair <AccSum*, AccSum*> (src, dst);
+
+        std::pair <int, int>* count_pair = new std::pair <int, int> (src_count, dst_count);
+
+        iroot_inst_count_map[acc_sum_pair] = count_pair;
+    }
+
   // add src->dst (precondition: no duplication)
   acc_sum_succ_index_[src].push_back(dst);
   acc_sum_pred_index_[dst].push_back(src);
@@ -937,6 +955,75 @@ PredictorNew::BarrierMeta *PredictorNew::GetBarrierMeta(address_t iaddr) {
   }
 }
 
+// return the number of mem accesses to the  same memory before current access
+int PredictorNew::getNumAcc(AccSum* acc_sum) {
+
+    int count = 0;
+
+  AccSum::TimeInfoEntry &tinfo_entry = acc_sum->tinfo.back();
+
+  ThdClkInfo thd_clk_info = tinfo_entry.second;
+
+  timestamp_t thd_start =  thd_clk_info.start;
+
+  AccHisto *acc_histo = acc_sum->meta->acc_histo;
+
+  thread_id_t thd_id = acc_sum->thd_id;
+
+  for (AccHisto::AccSumTable::iterator tit = acc_histo->acc_sum_table.begin();
+       tit != acc_histo->acc_sum_table.end(); ++tit) {
+      
+      //check this thread's access history 
+      if (tit->first == thd_id) {
+
+        for (AccSum::Vec::iterator vit = tit->second.begin();
+               vit != tit->second.end(); ++vit) {
+            
+            AccSum *rmt_acc_sum = *vit;
+
+            bool same = false;
+
+            for (AccSum::TimeInfo::reverse_iterator it = rmt_acc_sum->tinfo.rbegin();
+                it != rmt_acc_sum->tinfo.rend(); ++it) {
+                
+                AccSum::TimeInfoEntry &entry = *it;
+                
+                ThdClkInfo thd_clk_info = entry.second;
+
+                timestamp_t rmt_thd_start =  thd_clk_info.start;
+
+                if (rmt_thd_start < thd_start && !same) {
+
+                    count++;
+                }
+            }
+        }
+      }
+  }
+
+  return count;
+}
+
+// used for number of accesses, returns the number of memory accesses before this in both src and dst
+std::pair<int, int>* PredictorNew::searchForAccSumPair(AccSum* src, AccSum* dst) {
+
+    std::map <std::pair<AccSum*, AccSum*>*, std::pair<int, int>*>::iterator iter;
+
+    for (iter = iroot_inst_count_map.begin(); iter != iroot_inst_count_map.end(); ++iter) {
+
+        std::pair<AccSum*, AccSum*>* acc_sum_pair = iter->first;
+
+        if ((src == acc_sum_pair->first) && (dst == acc_sum_pair->second) && 
+            (src->thd_id == acc_sum_pair->first->thd_id) && 
+            (dst->thd_id == acc_sum_pair->second->thd_id)) {
+
+            return iter->second;
+        }
+    }
+
+    return NULL;
+}
+
 void PredictorNew::PredictiRoot() {
   // predict idiom1 iroots according to access summary pairs
   for (AccSum::PairIndex::iterator iit = acc_sum_succ_index_.begin();
@@ -949,6 +1036,38 @@ void PredictorNew::PredictiRoot() {
       iRootEvent *e0 = iroot_db_->GetiRootEvent(src->inst, src->type, false);
       iRootEvent *e1 = iroot_db_->GetiRootEvent(dst->inst, dst->type, false);
       iRoot *iroot = iroot_db_->GetiRoot(IDIOM_1, false, e0, e1);
+        if ((src->type == IROOT_EVENT_MEM_READ || src->type == IROOT_EVENT_MEM_WRITE) && 
+        (dst->type == IROOT_EVENT_MEM_READ || dst->type == IROOT_EVENT_MEM_WRITE)) {
+
+      std::pair<int, int>* count_pair = searchForAccSumPair(src, dst);
+
+      if (count_pair) {
+
+          int src_count = count_pair->first;
+
+          int dst_count = count_pair->second;
+
+          int old_src_count = iroot->getSrcCount();
+
+          int old_dst_count = iroot->getDstCount();
+
+          // we need the minimum number of mem access before. Therfore, take the min of all the mem acc counts
+          if (iroot->getCountPairBool()) {
+
+            if (old_src_count < src_count) {
+
+                count_pair->first = old_src_count;
+            }
+
+            if (old_dst_count < dst_count) {
+
+                count_pair->second = old_dst_count;
+            }
+          }
+            iroot->AddCountPair(count_pair);
+      }
+        }
+
       memo_->Predicted(iroot, false);
       if (CheckAsync(src) || CheckAsync(dst)) {
         memo_->SetAsync(iroot, false);
@@ -966,6 +1085,7 @@ PredictorNew::AccSum *PredictorNew::ProcessAccSumUpdate(DynAcc *dyn_acc) {
   // check whether a matching access summary can be found
   AccSum *curr_acc_sum = MatchAccSum(dyn_acc);
   if (curr_acc_sum) {
+
     // check whether a new vector clock value has been observed
     // for this access summary. only need to check the last vc.
     DEBUG_ASSERT(!curr_acc_sum->tinfo.empty());

@@ -198,12 +198,18 @@ iRoot *iRootDB::CreateiRoot(IdiomType idiom, iRootEventVec *events,
   iroot_id_t iroot_id = GetNextiRootID();
   iroot_proto->set_id(iroot_id);
   iroot_proto->set_idiom(idiom);
+  //pankit fix
+  iroot_proto->set_src_count(0);
+  iroot_proto->set_dst_count(0);
+  iroot_proto->set_count_pair_bool(0);
+
   iRoot *iroot = new iRoot(iroot_proto);
   for (size_t i = 0; i < events->size(); i++) {
     iRootEvent *event = (*events)[i];
     iroot_proto->add_event_id(event->id());
     iroot->AddEvent(event);
   }
+
   iroot_map_[iroot_id] = iroot;
   size_t hash_val = HashiRoot(idiom, events);
   iroot_index_[hash_val].push_back(iroot); // update index

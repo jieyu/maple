@@ -77,6 +77,9 @@ class Idiom1SchedStatus {
   size_t size_[2];
   DelaySet delay_set_;
 
+  // pankit
+  map <thread_id_t, long> num_mem_acc;
+
   friend class SchedulerCommon;
 
   DISALLOW_COPY_CONSTRUCTORS(Idiom1SchedStatus);
@@ -681,6 +684,7 @@ class SchedulerCommon : public ExecutionControl {
   std::map<thread_id_t, int> priority_map_;
   std::map<thread_id_t, int> ori_priority_map_;
   std::map<thread_id_t, OS_THREAD_ID> thd_id_os_tid_map_;
+
   bool volatile start_schedule_; // start scheduling when 2 threads are started
   bool volatile test_success_;
 

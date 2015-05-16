@@ -959,13 +959,13 @@ Controller::BarrierInfo *Controller::GetBarrierInfo(address_t iaddr) {
 Object *Controller::GetObject(address_t iaddr) {
   Region *region = FindRegion(iaddr);
   DEBUG_ASSERT(region);
-  SRegion *sregion = dynamic_cast<SRegion *>(region);
+  SRegion *sregion = reinterpret_cast<SRegion *>(region);
   if (sregion) {
     Image *image = sregion->image;
     address_t offset = iaddr - sregion->addr;
     return program_->GetSObject(image, offset);
   }
-  DRegion *dregion = dynamic_cast<DRegion *>(region);
+  DRegion *dregion = reinterpret_cast<DRegion *>(region);
   if (dregion) {
     Thread *creator = dregion->creator;
     Inst *creator_inst = dregion->creator_inst;
@@ -1033,7 +1033,7 @@ void Controller::FreeSRegion(address_t addr) {
   // delete a static region
   Region::Map::iterator it = region_table_.find(addr);
   if (it != region_table_.end()) {
-    SRegion *region = dynamic_cast<SRegion *>(it->second);
+    SRegion *region = reinterpret_cast<SRegion *>(it->second);
     DEBUG_ASSERT(region);
     region_table_.erase(it);
     FreeMutexInfo(region);
@@ -1046,7 +1046,7 @@ void Controller::FreeDRegion(address_t addr) {
   // delete a dynamic region
   Region::Map::iterator it = region_table_.find(addr);
   if (it != region_table_.end()) {
-    DRegion *region = dynamic_cast<DRegion *>(it->second);
+    DRegion *region = reinterpret_cast<DRegion *>(it->second);
     DEBUG_ASSERT(region);
     region_table_.erase(it);
     FreeMutexInfo(region);

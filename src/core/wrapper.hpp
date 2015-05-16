@@ -19,6 +19,7 @@
 #ifndef CORE_WRAPPER_HPP_
 #define CORE_WRAPPER_HPP_
 
+
 #include "pin.H"
 
 #include <pthread.h>
@@ -366,7 +367,7 @@ class WrapperFactory {
     WrapperMap::iterator it = wrappers_.find(name);
     if (it == wrappers_.end())
       return NULL;
-    return dynamic_cast<W *>(it->second);
+    return reinterpret_cast<W *>(it->second);
   }
 
   static WrapperFactory *GetInstance() {

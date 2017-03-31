@@ -149,7 +149,7 @@ Now, you can use Maple to test the program. Just run your program as you would d
     [MAPLE] active_runs     1
     [MAPLE] active_time     0.814823
 
-As can be seen, the bug is exposed by Maple in 5 profile runs and 1 active test run. Details about what have been done in profile runs and in active test runs can be found in our OOPSLA'12 [paper](http://www.eecs.umich.edu/~jieyu/papers/yu_oopsla12.pdf). Notice that a few files will be produced in the `~/example` directory. These files will be used by other components in Maple. So, you should not delete or modify them.
+As can be seen, the bug is exposed by Maple in 5 profile runs and 1 active test run. Details about what have been done in profile runs and in active test runs can be found in our OOPSLA'12 [paper](http://web.eecs.umich.edu/~nsatish/papers/OOPSLA-12-Maple.pdf). Notice that a few files will be produced in the `~/example` directory. These files will be used by other components in Maple. So, you should not delete or modify them.
 
 ### Reproduce the Bug
 
